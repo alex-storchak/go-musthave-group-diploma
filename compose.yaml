@@ -1,0 +1,19 @@
+services:
+  db-gophermart:
+    image: postgres:16-bookworm
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: StrongPassword01-gophermart
+    volumes:
+      - ./data/pgdata-gophermart:/var/lib/postgresql/data
+    ports:
+      - "54321:5432"
+  db-accrual:
+    image: postgres:16-bookworm
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: StrongPassword01-accrual
+    volumes:
+      - ./data/pgdata-accrual:/var/lib/postgresql/data
+    ports:
+      - "54322:5432"
