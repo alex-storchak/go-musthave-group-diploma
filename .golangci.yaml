@@ -136,8 +136,16 @@ linters:
 
     wrapcheck:
       ignore-sigs:
-        - "errors.Is(error, error) bool"
-        - "errors.As(error, interface{}) bool"
+        - ".Errorf("
+        - "errors.New("
+        - "errors.Is("
+        - "errors.As("
+        - "errors.Unwrap("
+        - ".Wrap("
+        - ".Wrapf("
+        - ".WithMessage("
+        - ".WithMessagef("
+        - ".WithStack("
 
     dupl:
       threshold: 80

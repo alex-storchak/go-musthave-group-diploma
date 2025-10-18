@@ -26,3 +26,6 @@ vendor/
 
 # binaries for autotest
 autotest/
+
+# local configs
+configs/accrual/*
