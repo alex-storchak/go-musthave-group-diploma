@@ -3,7 +3,7 @@ package logger
 import (
 	"fmt"
 
-	config "github.com/alex-storchak/go-musthave-group-diploma/internal/config/accrual"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

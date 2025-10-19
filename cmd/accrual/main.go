@@ -3,54 +3,48 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
 
-	config "github.com/alex-storchak/go-musthave-group-diploma/internal/config/accrual"
-	logger "github.com/alex-storchak/go-musthave-group-diploma/internal/logger/accrual"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/handler"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/logger"
 	"go.uber.org/zap"
 )
 
 func main() {
+	ctx := context.Background()
+	if err := run(ctx, os.Stderr); err != nil {
+		log.Fatalf("failed to run application: %v", err)
+	}
+}
+
+func run(
+	ctx context.Context,
+	stderr io.Writer,
+) error {
+	_, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to initialize config: %v", err)
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
 	zl, err := initLogger(cfg)
 	if err != nil {
-		log.Fatalf("failed to initialize logger: %v", err)
+		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
-	// defer func() {
-	//	if sErr := zl.Sync(); sErr != nil {
-	//		fmt.Fprintf(os.Stderr, "logger sync error: %v\n", sErr)
-	//	}
-	// }()
+	defer func() {
+		if sErr := zl.Sync(); sErr != nil {
+			_, _ = fmt.Fprintf(stderr, "logger sync error: %v\n", sErr)
+		}
+	}()
 
-	ctx := context.Background()
-	if err := run(ctx, cfg, zl); err != nil {
-		zl.Error("failed to run application", zap.Error(err))
-		os.Exit(1)
-	}
-}
-
-func run(ctx context.Context, cfg *config.Config, zl *zap.Logger) error {
-	_, cancel := signal.NotifyContext(ctx, os.Interrupt)
-	defer cancel()
-
-	zl.Debug("config", zap.Any("config", cfg))
-
-	// log.Printf("starting server on %s, log.level=%s", cfg.Addr(), cfg.Log.Level)
-	//
-	// srv := &http.Server{
-	// 	Addr: cfg.Addr(),
-	// }
-	// fmt.Println("Listening on", cfg.Addr())
-	// if err := srv.ListenAndServe(); err != nil {
-	// 	log.Fatal(err)
-	// }
-
+	router := handler.NewRouter(zl, cfg)
+	handler.Serve(ctx, cfg.Server, zl, router)
 	return nil
 }
 

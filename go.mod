@@ -3,6 +3,7 @@ module github.com/alex-storchak/go-musthave-group-diploma
 go 1.24.5
 
 require (
+	github.com/go-chi/chi/v5 v5.2.3
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.0

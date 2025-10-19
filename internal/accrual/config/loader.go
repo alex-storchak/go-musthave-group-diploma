@@ -15,7 +15,7 @@ var (
 	ErrEmptyDatabaseURI = errors.New("database_uri must not be empty")
 )
 
-func BindFlags(flagset *pflag.FlagSet) error {
+func bindFlags(flagset *pflag.FlagSet) error {
 	flagset.StringP("server.run_address", "a", "", "address of HTTP server")
 	flagset.StringP("log.level", "l", "", "Log level")
 	flagset.StringP("db.database_uri", "d", "", "Database URI")
@@ -52,7 +52,7 @@ func initViper() error {
 
 func Load() (*Config, error) {
 	fs := pflag.NewFlagSet("accrual", pflag.ContinueOnError)
-	if err := BindFlags(fs); err != nil {
+	if err := bindFlags(fs); err != nil {
 		return nil, fmt.Errorf("bind flags: %w", err)
 	}
 	if err := fs.Parse(os.Args[1:]); err != nil {

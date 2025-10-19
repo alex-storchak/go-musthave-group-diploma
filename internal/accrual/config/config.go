@@ -1,7 +1,10 @@
 package config
 
+import "time"
+
 type Server struct {
-	RunAddress string `mapstructure:"run_address"`
+	RunAddress               string        `mapstructure:"run_address"`
+	ShutdownWaitSecsDuration time.Duration `mapstructure:"shutdown_wait_secs_duration"`
 }
 
 type Log struct {
