@@ -1,4 +1,4 @@
-name: golangci-lint.yml
+name: golangci-lint
 
 on:
   workflow_dispatch:
