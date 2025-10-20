@@ -6,8 +6,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func Initialize(config *config.Config) (*zap.Logger, error) {
-	lvl, err := zap.ParseAtomicLevel(config.LogLevel)
+func Initialize(c *config.Config) (*zap.Logger, error) {
+	lvl, err := zap.ParseAtomicLevel(c.LogLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -16,7 +16,6 @@ func Initialize(config *config.Config) (*zap.Logger, error) {
 		MessageKey:     "msg",
 		LevelKey:       "level",
 		TimeKey:        "ts",
-		CallerKey:      "caller",
 		FunctionKey:    zapcore.OmitKey,
 		LineEnding:     zapcore.DefaultLineEnding,
 		EncodeTime:     zapcore.TimeEncoderOfLayout("2006-01-02T15:04:05.000Z"), // Формат ISO 8601

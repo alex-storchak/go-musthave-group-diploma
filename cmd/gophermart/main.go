@@ -7,12 +7,11 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/logging"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service"
-	"io"
 	"os"
 	"os/signal"
 )
 
-func run(ctx context.Context, w io.Writer, args []string) error {
+func run(ctx context.Context, args []string) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
@@ -31,19 +30,14 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 		return err
 	}
 
-	defer func(gophermartService *service.Gophermart) {
-		err := gophermartService.Close()
-		if err != nil {
-
-		}
-	}(gophermartService)
+	defer gophermartService.Close()
 
 	return handler.Serve(ctx, logger, cfg.Handlers, gophermartService)
 }
 
 func main() {
 	ctx := context.Background()
-	if err := run(ctx, os.Stdout, os.Args); err != nil {
+	if err := run(ctx, os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}

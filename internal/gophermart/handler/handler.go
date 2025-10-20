@@ -2,9 +2,10 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware"
-
+	localmiddleware "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/middleware"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 	"net/http"
@@ -38,8 +39,8 @@ func newHandlers(
 func newRouter(h *handlers) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(middleware.RequestLogger(h.logger))
-	r.Use(middleware.GzipMiddleware(h.logger))
+	r.Use(middleware.NewGzip(h.logger))
+	r.Use(localmiddleware.RequestLogger(h.logger))
 
 	r.Get("/ping", h.Ping)
 
@@ -56,7 +57,7 @@ func Serve(ctx context.Context, logger *zap.Logger, cfg *config.Config, gopherma
 	}
 	go func() {
 		logger.Info("starting server", zap.String("addr", cfg.ServerAddr))
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("error starting server", zap.Error(err))
 		}
 	}()

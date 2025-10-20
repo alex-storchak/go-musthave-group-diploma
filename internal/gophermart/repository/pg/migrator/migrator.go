@@ -19,11 +19,11 @@ func ApplyMigrations(db *sql.DB, dirName string) error {
 
 	migrator, err := migrate.NewWithDatabaseInstance(dirName, "pgx", driver)
 	if err != nil {
-		return fmt.Errorf("unable to create migration: %v", err)
+		return fmt.Errorf("unable to create migration: %w", err)
 	}
 
 	if err = migrator.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("unable to apply migrations %v", err)
+		return fmt.Errorf("unable to apply migrations %w", err)
 	}
 
 	return nil
