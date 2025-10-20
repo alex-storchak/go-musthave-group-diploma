@@ -1,10 +1,10 @@
-package gophermart
+package service
 
 import (
 	"context"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/handler/gophermart/config"
-	repository "github.com/alex-storchak/go-musthave-group-diploma/internal/repository/gophermart"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/repository/gophermart/pg"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/pg"
 )
 
 type Gophermart struct {

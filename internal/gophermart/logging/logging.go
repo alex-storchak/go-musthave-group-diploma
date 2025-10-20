@@ -1,7 +1,7 @@
 package logging
 
 import (
-	config "github.com/alex-storchak/go-musthave-group-diploma/internal/config/gophermart"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

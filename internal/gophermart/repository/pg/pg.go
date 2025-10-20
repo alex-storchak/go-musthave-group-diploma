@@ -3,9 +3,9 @@ package pg
 import (
 	"context"
 	"database/sql"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/handler/gophermart/config"
-	repository "github.com/alex-storchak/go-musthave-group-diploma/internal/repository/gophermart"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/repository/gophermart/pg/migrator"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/pg/migrator"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -20,17 +20,15 @@ func NewStore(cfg *config.Config) (repository.Repository, error) {
 		return nil, err
 	}
 
-	store := &Store{
-		cfg:  cfg,
-		conn: conn,
-	}
-
-	err = migrator.ApplyMigrations(conn, "file://./migrations")
+	err = migrator.ApplyMigrations(conn, "file://./migrations/gophermart")
 	if err != nil {
 		return nil, err
 	}
 
-	return store, nil
+	return &Store{
+		cfg:  cfg,
+		conn: conn,
+	}, nil
 }
 
 func (st *Store) Ping(ctx context.Context) error {

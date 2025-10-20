@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	config "github.com/alex-storchak/go-musthave-group-diploma/internal/config/gophermart"
-	handler "github.com/alex-storchak/go-musthave-group-diploma/internal/handler/gophermart"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/logging"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/service/gophermart"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/logging"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service"
 	"io"
 	"os"
 	"os/signal"
@@ -26,12 +26,12 @@ func run(ctx context.Context, w io.Writer, args []string) error {
 		return err
 	}
 
-	gophermartService, err := gophermart.NewGophermart(cfg.Handlers)
+	gophermartService, err := service.NewGophermart(cfg.Handlers)
 	if err != nil {
 		return err
 	}
 
-	defer func(gophermartService *gophermart.Gophermart) {
+	defer func(gophermartService *service.Gophermart) {
 		err := gophermartService.Close()
 		if err != nil {
 

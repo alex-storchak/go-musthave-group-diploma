@@ -2,7 +2,7 @@ package config
 
 import (
 	"flag"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/handler/gophermart/config"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
 	"os"
 )
 
