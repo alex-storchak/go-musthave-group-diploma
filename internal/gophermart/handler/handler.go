@@ -3,14 +3,15 @@ package handler
 import (
 	"context"
 	"errors"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
-	localmiddleware "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/middleware"
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/zap"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	localmiddleware "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"go.uber.org/zap"
 )
 
 type Gophermart interface {
@@ -39,7 +40,7 @@ func newHandlers(
 func newRouter(h *handlers) *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(middleware.NewGzip(h.logger))
+	r.Use(middleware.Compress(5))
 	r.Use(localmiddleware.RequestLogger(h.logger))
 
 	r.Get("/ping", h.Ping)
