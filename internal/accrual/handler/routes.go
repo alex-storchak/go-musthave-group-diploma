@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
+	mw "github.com/alex-storchak/go-musthave-group-diploma/internal/middleware"
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/go-chi/chi/v5"
@@ -18,16 +19,17 @@ const (
 func addRoutes(
 	mux *chi.Mux,
 	logger *zap.Logger,
-	_ *config.Config,
+	cfg *config.Config,
 	accrual *service.Accrual,
 ) {
 	mux.Use(middleware.Compress(mediumCompressLevel))
 
+	rateLimiter := mw.NewEndpointRateLimiter(cfg.Server.RequestsRateLimit, logger)
 	mux.Route("/api", func(mux chi.Router) {
 		mux.Post("/goods", handleRewardRule(logger, accrual))
 		mux.Route("/orders", func(mux chi.Router) {
 			mux.Post("/", handleOrders(logger, accrual))
-			mux.Get("/{number}", handleOrderNumber(logger, accrual))
+			mux.With(rateLimiter).Get("/{number}", handleOrderNumber(logger, accrual))
 		})
 	})
 }
