@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
@@ -52,7 +54,7 @@ type OrderRegisterer interface {
 
 func prepareOrder(order reqOrder) *model.Order {
 	mo := model.Order{
-		Number: order.Number,
+		Number: removeWhitespaces(order.Number),
 		Goods:  make([]model.Good, 0, len(order.Goods)),
 	}
 	for _, g := range order.Goods {
@@ -63,6 +65,15 @@ func prepareOrder(order reqOrder) *model.Order {
 		mo.Goods = append(mo.Goods, mg)
 	}
 	return &mo
+}
+
+func removeWhitespaces(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, s)
 }
 
 func handleOrders(l *zap.Logger, reg OrderRegisterer) http.HandlerFunc {

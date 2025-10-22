@@ -11,6 +11,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var ErrOrderNotFound = errors.New("order not found")
+
 func NewPgOrders(pool *pgxpool.Pool, l *zap.Logger) *PgOrders {
 	return &PgOrders{
 		dbPool: pool,
@@ -69,9 +71,33 @@ func (p *PgOrders) Has(ctx context.Context, number string) (bool, error) {
 	row := p.dbPool.QueryRow(ctx, q, number)
 	err := row.Scan(&has)
 	if err != nil {
-		return false, fmt.Errorf("scan query result row: %w", err)
+		return false, fmt.Errorf("scan order exists query result row: %w", err)
 	}
 	return has, nil
+}
+
+func (p *PgOrders) GetOrder(ctx context.Context, number string) (*model.Order, error) {
+	q := `
+		SELECT 
+		    ao.order_number, 
+		    aos.code as status, 
+		    coalesce(ao.accrual, 0) as accrual, 
+		    ao.registered_at, 
+		    ao.processed_at 
+		FROM accrual_orders ao
+		JOIN accrual_statuses aos ON ao.status_id = aos.id
+		WHERE ao.order_number = $1
+	`
+
+	var order model.Order
+	row := p.dbPool.QueryRow(ctx, q, number)
+	err := row.Scan(&order.Number, &order.Status, &order.Accrual, &order.RegisteredAt, &order.ProcessedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrOrderNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("scan order select query result row: %w", err)
+	}
+	return &order, nil
 }
 
 func (p *PgOrders) Close() {

@@ -9,7 +9,11 @@ import (
 	"go.uber.org/zap"
 )
 
-const mediumCompressLevel int = 5
+const (
+	OrderNumberParam = "number"
+
+	mediumCompressLevel int = 5
+)
 
 func addRoutes(
 	mux *chi.Mux,
@@ -23,7 +27,7 @@ func addRoutes(
 		mux.Post("/goods", handleRewardRule(logger, accrual))
 		mux.Route("/orders", func(mux chi.Router) {
 			mux.Post("/", handleOrders(logger, accrual))
-			// mux.Get("/{number}", handleOrderNumber)
+			mux.Get("/{number}", handleOrderNumber(logger, accrual))
 		})
 	})
 }

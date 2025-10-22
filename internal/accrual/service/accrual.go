@@ -17,6 +17,7 @@ var (
 type OrdersRepository interface {
 	Add(ctx context.Context, order *model.Order) error
 	Has(ctx context.Context, number string) (bool, error)
+	GetOrder(ctx context.Context, number string) (*model.Order, error)
 	Close()
 }
 
@@ -68,6 +69,14 @@ func (a *Accrual) RegisterRule(ctx context.Context, rule *model.RewardRule) erro
 		return fmt.Errorf("add rule to repo: %w", err)
 	}
 	return nil
+}
+
+func (a *Accrual) InformOrder(ctx context.Context, number string) (*model.Order, error) {
+	order, err := a.Orders.GetOrder(ctx, number)
+	if err != nil {
+		return nil, fmt.Errorf("get order from repo: %w", err)
+	}
+	return order, nil
 }
 
 func (a *Accrual) Close() {
