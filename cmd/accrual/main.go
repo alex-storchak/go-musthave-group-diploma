@@ -11,6 +11,8 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/handler"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/logger"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/repository/factory"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
 	"go.uber.org/zap"
 )
 
@@ -30,12 +32,12 @@ func run(
 
 	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
 	zl, err := initLogger(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to initialize logger: %w", err)
+		return fmt.Errorf("initialize logger: %w", err)
 	}
 	defer func() {
 		if sErr := zl.Sync(); sErr != nil {
@@ -43,7 +45,14 @@ func run(
 		}
 	}()
 
-	router := handler.NewRouter(zl, cfg)
+	pgFactory, err := factory.NewPgRepo(ctx, cfg.DB, zl)
+	if err != nil {
+		return fmt.Errorf("create pg repo factory: %w", err)
+	}
+	accrual := initAccrual(pgFactory, zl)
+	defer accrual.Orders.Close()
+
+	router := handler.NewRouter(zl, cfg, accrual)
 	handler.Serve(ctx, cfg.Server, zl, router)
 	return nil
 }
@@ -55,4 +64,9 @@ func initLogger(cfg *config.Config) (*zap.Logger, error) {
 	}
 	zl.Info("logger initialized")
 	return zl, nil
+}
+
+func initAccrual(f factory.Repo, l *zap.Logger) *service.Accrual {
+	orders := f.MakeOrders()
+	return service.NewAccrual(orders, l)
 }

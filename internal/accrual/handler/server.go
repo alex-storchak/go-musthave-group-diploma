@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -14,9 +15,10 @@ import (
 func NewRouter(
 	logger *zap.Logger,
 	cfg *config.Config,
+	accrual *service.Accrual,
 ) http.Handler {
 	r := chi.NewRouter()
-	addRoutes(r, logger, cfg)
+	addRoutes(r, logger, cfg, accrual)
 	return r
 }
 
@@ -31,7 +33,7 @@ func Serve(
 		Handler: router,
 	}
 	go func() {
-		logger.Info("starting server", zap.String("addr", cfg.RunAddress))
+		logger.Info("starting server", zap.String("run address", cfg.RunAddress))
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("error starting server", zap.Error(err))
 		}

@@ -1,19 +1,23 @@
 package config
 
 const (
-	DefaultRunAddress = "localhost:8080"
-	DefaultLogLevel   = "info"
-	DefaultDBURI      = ""
+	defaultRunAddress     = "localhost:8080"
+	defaultLogLevel       = "info"
+	defaultDBURI          = ""
+	defaultMigrationsPath = "file://./migrations/accrual"
 )
 
 func applyDefaults(c *Config) {
 	if c.Server.RunAddress == "" {
-		c.Server.RunAddress = DefaultRunAddress
+		c.Server.RunAddress = defaultRunAddress
 	}
 	if c.Log.Level == "" {
-		c.Log.Level = DefaultLogLevel
+		c.Log.Level = defaultLogLevel
 	}
 	if c.DB.DatabaseURI == "" {
-		c.DB.DatabaseURI = DefaultDBURI
+		c.DB.DatabaseURI = defaultDBURI
+	}
+	if c.DB.MigrationsPath == "" {
+		c.DB.MigrationsPath = defaultMigrationsPath
 	}
 }
