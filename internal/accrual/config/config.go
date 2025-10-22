@@ -5,6 +5,7 @@ import "time"
 type Server struct {
 	RunAddress               string        `mapstructure:"run_address"`
 	ShutdownWaitSecsDuration time.Duration `mapstructure:"shutdown_wait_secs_duration"`
+	RequestsRateLimit        int           `mapstructure:"requests_rate_limit"`
 }
 
 type Log struct {
