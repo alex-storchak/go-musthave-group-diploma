@@ -45,7 +45,7 @@ func (p *PgOrders) Add(ctx context.Context, order *model.Order) error {
 	var orderID int64
 	err = trx.QueryRow(ctx, qOrders, order.Number).Scan(&orderID)
 	if err != nil {
-		return fmt.Errorf("scan returning order id: %w", err)
+		return fmt.Errorf("insert order (%s) and scan returning order id: %w", order.Number, err)
 	}
 
 	batch := pgx.Batch{}

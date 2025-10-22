@@ -69,14 +69,14 @@ func handleOrders(l *zap.Logger, reg OrderRegisterer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		order, err := codec.Decode[reqOrder](r)
 		if err != nil {
-			l.Error("decode json request", zap.Error(err))
+			l.Debug("decode json request", zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		_, err = validator.IsValid(order)
 		if err != nil {
-			l.Error("decode request and check validity", zap.Error(err))
+			l.Debug("decode request and check validity", zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

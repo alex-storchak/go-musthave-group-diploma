@@ -14,9 +14,10 @@ import (
 
 type Repo interface {
 	MakeOrders() service.OrdersRepository
+	MakeRewardRules() service.RulesRepository
 }
 
-func NewPgRepo(ctx context.Context, cfg config.DB, l *zap.Logger) (Repo, error) {
+func NewPgRepo(ctx context.Context, cfg config.DB, l *zap.Logger) (*PgRepo, error) {
 	pgCfg := db.PgConfig{
 		DSN:            cfg.DatabaseURI,
 		MigrationsPath: cfg.MigrationsPath,
@@ -40,4 +41,8 @@ type PgRepo struct {
 
 func (p *PgRepo) MakeOrders() service.OrdersRepository {
 	return repository.NewPgOrders(p.dbPool, p.logger)
+}
+
+func (p *PgRepo) MakeRewardRules() service.RulesRepository {
+	return repository.NewPgRewardRules(p.dbPool, p.logger)
 }

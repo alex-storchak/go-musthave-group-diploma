@@ -1,4 +1,4 @@
-.PHONY: lint lint-fix lint-verbose
+.PHONY: lint lint-fix lint-verbose lint-accrual
 
 GOLANGCI_LINT = golangci-lint
 
@@ -10,3 +10,6 @@ lint-fix:
 
 lint-verbose:
 	$(GOLANGCI_LINT) run -v
+
+lint-accrual:
+	$(GOLANGCI_LINT) run ./internal/accrual/...

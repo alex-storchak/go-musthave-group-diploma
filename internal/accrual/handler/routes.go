@@ -20,7 +20,7 @@ func addRoutes(
 	mux.Use(middleware.Compress(mediumCompressLevel))
 
 	mux.Route("/api", func(mux chi.Router) {
-		// mux.Post("/goods", handleGoogs)
+		mux.Post("/goods", handleRewardRule(logger, accrual))
 		mux.Route("/orders", func(mux chi.Router) {
 			mux.Post("/", handleOrders(logger, accrual))
 			// mux.Get("/{number}", handleOrderNumber)

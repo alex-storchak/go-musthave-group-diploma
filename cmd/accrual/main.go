@@ -50,7 +50,7 @@ func run(
 		return fmt.Errorf("create pg repo factory: %w", err)
 	}
 	accrual := initAccrual(pgFactory, zl)
-	defer accrual.Orders.Close()
+	defer accrual.Close()
 
 	router := handler.NewRouter(zl, cfg, accrual)
 	handler.Serve(ctx, cfg.Server, zl, router)
@@ -67,6 +67,7 @@ func initLogger(cfg *config.Config) (*zap.Logger, error) {
 }
 
 func initAccrual(f factory.Repo, l *zap.Logger) *service.Accrual {
-	orders := f.MakeOrders()
-	return service.NewAccrual(orders, l)
+	o := f.MakeOrders()
+	r := f.MakeRewardRules()
+	return service.NewAccrual(o, r, l)
 }
