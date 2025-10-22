@@ -23,8 +23,8 @@ type reqOrder struct {
 	Goods  []reqGood `json:"goods"`
 }
 
-func (o reqOrder) Valid() (problems validator.Problems) {
-	problems = make(validator.Problems)
+func (o reqOrder) Valid() validator.Problems {
+	problems := make(validator.Problems)
 
 	if o.Number == "" {
 		problems["order"] = "order is required"
@@ -43,17 +43,17 @@ func (o reqOrder) Valid() (problems validator.Problems) {
 		}
 	}
 
-	return
+	return problems
 }
 
 type OrderRegisterer interface {
-	RegisterOrder(ctx context.Context, order model.Order) error
+	RegisterOrder(ctx context.Context, order *model.Order) error
 }
 
-func prepareOrder(order reqOrder) model.Order {
+func prepareOrder(order reqOrder) *model.Order {
 	mo := model.Order{
 		Number: order.Number,
-		Goods:  make([]model.Good, len(order.Goods)),
+		Goods:  make([]model.Good, 0, len(order.Goods)),
 	}
 	for _, g := range order.Goods {
 		mg := model.Good{
@@ -62,7 +62,7 @@ func prepareOrder(order reqOrder) model.Order {
 		}
 		mo.Goods = append(mo.Goods, mg)
 	}
-	return mo
+	return &mo
 }
 
 func handleOrders(l *zap.Logger, reg OrderRegisterer) http.HandlerFunc {
@@ -81,13 +81,13 @@ func handleOrders(l *zap.Logger, reg OrderRegisterer) http.HandlerFunc {
 			return
 		}
 
-		if err := reg.RegisterOrder(r.Context(), prepareOrder(order)); err != nil {
+		if err := reg.RegisterOrder(context.Background(), prepareOrder(order)); err != nil {
 			if errors.Is(err, service.ErrOrderAlreadyRegistered) {
 				w.WriteHeader(http.StatusConflict)
 				return
 			}
 
-			l.Error("register reqOrder via service", zap.Error(err))
+			l.Error("register order via service", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

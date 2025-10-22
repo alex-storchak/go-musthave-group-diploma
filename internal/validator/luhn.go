@@ -5,6 +5,7 @@ import (
 	"unicode"
 )
 
+//nolint:mnd // numbers just the need for the algorithm
 func IsValidLuhn(number string) bool {
 	cleanNumber := ""
 	for _, char := range number {
@@ -23,7 +24,10 @@ func IsValidLuhn(number string) bool {
 	isSecond := false
 
 	for i := len(cleanNumber) - 1; i >= 0; i-- {
-		digit, _ := strconv.Atoi(string(cleanNumber[i]))
+		digit, err := strconv.Atoi(string(cleanNumber[i]))
+		if err != nil {
+			return false
+		}
 
 		if isSecond {
 			digit *= 2

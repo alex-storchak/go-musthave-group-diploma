@@ -12,7 +12,8 @@ type Log struct {
 }
 
 type DB struct {
-	DatabaseURI string `mapstructure:"database_uri"`
+	DatabaseURI    string `mapstructure:"database_uri"`
+	MigrationsPath string `mapstructure:"migrations_path"`
 }
 
 type Config struct {
