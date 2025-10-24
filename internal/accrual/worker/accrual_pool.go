@@ -30,6 +30,7 @@ type AccrualPool struct {
 	rules           service.RulesRepository
 	rulesCache      atomic.Pointer[[]model.RewardRule]
 	rulesCacheDirty atomic.Bool
+	rulesCacheMu    *sync.Mutex
 	cfg             config.Accrual
 	jobChan         chan *model.Order
 	logger          *zap.Logger
@@ -46,12 +47,13 @@ func NewAccrualPool(
 	l *zap.Logger,
 ) *AccrualPool {
 	ap := &AccrualPool{
-		processor: p,
-		orders:    o,
-		rules:     r,
-		jobChan:   make(chan *model.Order, cfg.JobChanSize),
-		cfg:       *cfg,
-		logger:    l,
+		processor:    p,
+		orders:       o,
+		rules:        r,
+		rulesCacheMu: &sync.Mutex{},
+		jobChan:      make(chan *model.Order, cfg.JobChanSize),
+		cfg:          *cfg,
+		logger:       l,
 	}
 
 	ap.ClearRulesCache()
@@ -200,6 +202,9 @@ func (p *AccrualPool) resetStuckOrders(ctx context.Context) {
 }
 
 func (p *AccrualPool) getAllRules(ctx context.Context) ([]model.RewardRule, error) {
+	p.rulesCacheMu.Lock()
+	defer p.rulesCacheMu.Unlock()
+
 	if p.rulesCacheDirty.Load() {
 		p.ClearRulesCache()
 	}
@@ -259,6 +264,9 @@ func (p *AccrualPool) MarkCacheDirty() {
 }
 
 func (p *AccrualPool) ClearRulesCache() {
+	p.rulesCacheMu.Lock()
+	defer p.rulesCacheMu.Unlock()
+
 	p.rulesCacheDirty.Store(false)
 	emptyRules := make([]model.RewardRule, 0)
 	p.rulesCache.Store(&emptyRules)
