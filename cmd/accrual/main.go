@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -19,14 +18,13 @@ import (
 
 func main() {
 	ctx := context.Background()
-	if err := run(ctx, os.Stderr); err != nil {
+	if err := run(ctx); err != nil {
 		log.Fatalf("failed to run application: %v", err)
 	}
 }
 
 func run(
 	ctx context.Context,
-	stderr io.Writer,
 ) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
@@ -59,7 +57,7 @@ func run(
 	defer accrualPool.Close()
 	accrualPool.Start(ctx)
 
-	router := handler.NewRouter(zl, cfg, accrual)
+	router := handler.NewRouter(zl, cfg, accrual, accrualPool)
 	handler.Serve(ctx, cfg.Server, zl, router)
 	return nil
 }

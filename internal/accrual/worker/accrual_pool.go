@@ -25,16 +25,17 @@ type ProcessOrdersRepository interface {
 }
 
 type AccrualPool struct {
-	processor  OrderProcessor
-	orders     ProcessOrdersRepository
-	rules      service.RulesRepository
-	rulesCache atomic.Pointer[[]model.RewardRule]
-	cfg        config.Accrual
-	jobChan    chan *model.Order
-	logger     *zap.Logger
-	wg         sync.WaitGroup
-	started    atomic.Bool
-	closed     atomic.Bool
+	processor       OrderProcessor
+	orders          ProcessOrdersRepository
+	rules           service.RulesRepository
+	rulesCache      atomic.Pointer[[]model.RewardRule]
+	rulesCacheDirty atomic.Bool
+	cfg             config.Accrual
+	jobChan         chan *model.Order
+	logger          *zap.Logger
+	wg              sync.WaitGroup
+	started         atomic.Bool
+	closed          atomic.Bool
 }
 
 func NewAccrualPool(
@@ -53,8 +54,7 @@ func NewAccrualPool(
 		logger:    l,
 	}
 
-	emptyRules := make([]model.RewardRule, 0)
-	ap.rulesCache.Store(&emptyRules)
+	ap.ClearRulesCache()
 
 	return ap
 }
@@ -200,12 +200,15 @@ func (p *AccrualPool) resetStuckOrders(ctx context.Context) {
 }
 
 func (p *AccrualPool) getAllRules(ctx context.Context) ([]model.RewardRule, error) {
+	if p.rulesCacheDirty.Load() {
+		p.ClearRulesCache()
+	}
+
 	cached := p.rulesCache.Load()
 	if cached != nil && len(*cached) > 0 {
 		return *cached, nil
 	}
 
-	// Кэш пуст - загружаем синхронно
 	rules, err := p.rules.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get all rules from repo: %w", err)
@@ -248,6 +251,18 @@ func (p *AccrualPool) refreshCache(ctx context.Context) {
 
 	p.updateCache(rules)
 	p.logger.Debug("rules cache updated", zap.Int("rules_count", len(rules)))
+}
+
+func (p *AccrualPool) MarkCacheDirty() {
+	p.rulesCacheDirty.Store(true)
+	p.logger.Debug("rules cache marked as dirty")
+}
+
+func (p *AccrualPool) ClearRulesCache() {
+	p.rulesCacheDirty.Store(false)
+	emptyRules := make([]model.RewardRule, 0)
+	p.rulesCache.Store(&emptyRules)
+	p.logger.Debug("rules cache cleared")
 }
 
 func (p *AccrualPool) Close() {

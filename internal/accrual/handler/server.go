@@ -8,6 +8,7 @@ import (
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -16,9 +17,10 @@ func NewRouter(
 	logger *zap.Logger,
 	cfg *config.Config,
 	accrual *service.Accrual,
+	accrualPool *worker.AccrualPool,
 ) http.Handler {
 	r := chi.NewRouter()
-	addRoutes(r, logger, cfg, accrual)
+	addRoutes(r, logger, cfg, accrual, accrualPool)
 	return r
 }
 

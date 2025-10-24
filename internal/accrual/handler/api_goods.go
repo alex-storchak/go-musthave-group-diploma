@@ -41,6 +41,10 @@ type RuleRegisterer interface {
 	RegisterRule(ctx context.Context, rule *model.RewardRule) error
 }
 
+type RulesCacheInvalidator interface {
+	MarkCacheDirty()
+}
+
 func prepareRule(rule reqRewardRule) (*model.RewardRule, error) {
 	mr, err := model.NewRewardRule(rule.Match, rule.Reward, model.RewardType(rule.RewardType))
 	if err != nil {
@@ -49,7 +53,7 @@ func prepareRule(rule reqRewardRule) (*model.RewardRule, error) {
 	return mr, nil
 }
 
-func handleRewardRule(l *zap.Logger, reg RuleRegisterer) http.HandlerFunc {
+func handleRewardRule(l *zap.Logger, reg RuleRegisterer, inv RulesCacheInvalidator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rule, err := codec.Decode[reqRewardRule](r)
 		if err != nil {
@@ -80,6 +84,8 @@ func handleRewardRule(l *zap.Logger, reg RuleRegisterer) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		inv.MarkCacheDirty()
 
 		w.WriteHeader(http.StatusOK)
 	}
