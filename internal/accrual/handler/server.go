@@ -50,6 +50,7 @@ func Serve(
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			logger.Error("error shutting down http server", zap.Error(err))
 		}
+		logger.Info("http server closed")
 	}()
 	wg.Wait()
 }

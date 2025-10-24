@@ -45,6 +45,37 @@ func (p *PgRewardRules) Has(ctx context.Context, match string) (bool, error) {
 	return has, nil
 }
 
+func (p *PgRewardRules) All(ctx context.Context) ([]model.RewardRule, error) {
+	q := `
+		SELECT rr.match_pattern, rr.reward, rt.code as reward_type, rr.created_at 
+		FROM reward_rules rr
+		JOIN reward_types rt ON rr.reward_type_id = rt.id
+	`
+	rows, err := p.dbPool.Query(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("query all reward rules: %w", err)
+	}
+	defer rows.Close()
+
+	estimateRulesCount := 1024
+	rules := make([]model.RewardRule, 0, estimateRulesCount)
+	for rows.Next() {
+		var rule model.RewardRule
+		err = rows.Scan(&rule.Match, &rule.Reward, &rule.RewardType, &rule.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("scan reward rule: %w", err)
+		}
+		rules = append(rules, rule)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("scan all reward rules from db: %w", err)
+	}
+
+	return rules, nil
+}
+
 func (p *PgRewardRules) Close() {
 	p.dbPool.Close()
 }

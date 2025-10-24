@@ -17,8 +17,22 @@ var (
 
 func bindFlags(flagset *pflag.FlagSet) error {
 	flagset.StringP("server.run_address", "a", "", "address of HTTP server")
+	flagset.Duration("server.shutdown_wait_secs_duration", 0, "seconds duration that server waits for a graceful shutdown")
+	flagset.Int("server.request_rate_limit", 0, "rate limit for endpoint GET /api/orders/{number}")
+
 	flagset.StringP("log.level", "l", "", "Log level")
-	flagset.StringP("db.database_uri", "d", "", "Database URI")
+
+	flagset.StringP("db.database_uri", "d", "", "database URI")
+	flagset.String("db.migrations_path", "", "path to directory with database migrations")
+
+	flagset.Int("accrual.worker_count", 0, "number of workers for accrual processing")
+	flagset.Int("accrual.job_chan_size", 0, "size of channel for accrual jobs")
+	flagset.Int("accrual.batch_size", 0, "number of orders to fetch in one batch")
+	flagset.Duration("accrual.poll_interval", 0, "interval between checks for new orders")
+	flagset.Duration("accrual.rules_cache_ttl", 0, "time to live for rules cache")
+	flagset.Duration("accrual.stuck_order_timeout", 0, "timeout after which order is considered stuck")
+	flagset.Duration("accrual.stuck_order_check_interval", 0, "interval between checks for stuck orders")
+	flagset.Int("accrual.stuck_order_batch_limit", 0, "number of orders to reset in one batch")
 
 	if err := viper.BindPFlags(flagset); err != nil {
 		return fmt.Errorf("bind flags with viper: %w", err)

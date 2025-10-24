@@ -7,13 +7,19 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/repository"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/db"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
+type ProcessableOrdersRepository interface {
+	service.OrdersRepository
+	worker.ProcessOrdersRepository
+}
+
 type Repo interface {
-	MakeOrders() service.OrdersRepository
+	MakeOrders() ProcessableOrdersRepository
 	MakeRewardRules() service.RulesRepository
 }
 
@@ -39,7 +45,7 @@ type PgRepo struct {
 	logger *zap.Logger
 }
 
-func (p *PgRepo) MakeOrders() service.OrdersRepository {
+func (p *PgRepo) MakeOrders() ProcessableOrdersRepository {
 	return repository.NewPgOrders(p.dbPool, p.logger)
 }
 

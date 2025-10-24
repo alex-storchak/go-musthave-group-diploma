@@ -47,6 +47,7 @@ CREATE TABLE reward_rules
 CREATE INDEX idx_accrual_orders_status_id ON accrual_orders (status_id);
 CREATE INDEX idx_accrual_orders_number ON accrual_orders (order_number);
 CREATE INDEX idx_accrual_orders_registered_at ON accrual_orders (registered_at);
+CREATE INDEX idx_accrual_orders_processed_at ON accrual_orders (processed_at);
 CREATE INDEX idx_order_goods_order_id ON order_goods (order_id);
 CREATE INDEX idx_reward_rules_pattern ON reward_rules (match_pattern);
 CREATE INDEX idx_reward_rules_type_id ON reward_rules (reward_type_id);
