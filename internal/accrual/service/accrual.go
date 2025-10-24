@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/repository"
+	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/zap"
 )
 
@@ -17,13 +20,14 @@ var (
 type OrdersRepository interface {
 	Add(ctx context.Context, order *model.Order) error
 	Has(ctx context.Context, number string) (bool, error)
-	GetOrder(ctx context.Context, number string) (*model.Order, error)
+	Get(ctx context.Context, number string) (*model.Order, error)
 	Close()
 }
 
 type RulesRepository interface {
 	Add(ctx context.Context, rule *model.RewardRule) error
 	Has(ctx context.Context, match string) (bool, error)
+	All(ctx context.Context) ([]model.RewardRule, error)
 	Close()
 }
 
@@ -72,11 +76,57 @@ func (a *Accrual) RegisterRule(ctx context.Context, rule *model.RewardRule) erro
 }
 
 func (a *Accrual) InformOrder(ctx context.Context, number string) (*model.Order, error) {
-	order, err := a.Orders.GetOrder(ctx, number)
+	order, err := a.Orders.Get(ctx, number)
 	if err != nil {
 		return nil, fmt.Errorf("get order from repo: %w", err)
 	}
 	return order, nil
+}
+
+func (a *Accrual) ProcessOrder(order *model.Order, rules []model.RewardRule) {
+	totalAccrual := 0.0
+
+	for _, g := range order.Goods {
+		accrual := a.calculateGoodAccrual(g, rules, order.RegisteredAt)
+		totalAccrual += accrual
+	}
+
+	if totalAccrual == 0 {
+		a.logger.Info("no accrual for order", zap.String("order_number", order.Number))
+		order.Status = repository.StatusInvalid
+		return
+	}
+
+	order.Accrual = totalAccrual
+	order.Status = repository.StatusProcessed
+}
+
+func (a *Accrual) calculateGoodAccrual(
+	good model.Good,
+	rules []model.RewardRule,
+	orderRegisteredAt pgtype.Timestamptz,
+) float64 {
+	accrual := 0.0
+	description := strings.ToLower(good.Description)
+
+	for _, rule := range rules {
+		ruleTime := rule.CreatedAt.Time
+		orderTime := orderRegisteredAt.Time
+		isApplicable := ruleTime.Before(orderTime)
+		if !isApplicable {
+			continue
+		}
+		if strings.Contains(description, strings.ToLower(rule.Match)) {
+			switch rule.RewardType {
+			case model.Percent:
+				accrual += good.Price * rule.Reward / 100
+			case model.Points:
+				accrual += rule.Reward
+			}
+		}
+	}
+
+	return accrual
 }
 
 func (a *Accrual) Close() {

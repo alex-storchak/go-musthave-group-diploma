@@ -13,6 +13,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/logger"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/repository/factory"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker"
 	"go.uber.org/zap"
 )
 
@@ -27,7 +28,7 @@ func run(
 	ctx context.Context,
 	stderr io.Writer,
 ) error {
-	_, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
 	cfg, err := config.Load()
@@ -40,17 +41,23 @@ func run(
 		return fmt.Errorf("initialize logger: %w", err)
 	}
 	defer func() {
-		if sErr := zl.Sync(); sErr != nil {
-			_, _ = fmt.Fprintf(stderr, "logger sync error: %v\n", sErr)
-		}
+		_ = zl.Sync()
 	}()
 
 	pgFactory, err := factory.NewPgRepo(ctx, cfg.DB, zl)
 	if err != nil {
 		return fmt.Errorf("create pg repo factory: %w", err)
 	}
-	accrual := initAccrual(pgFactory, zl)
+
+	orders := pgFactory.MakeOrders()
+	rules := pgFactory.MakeRewardRules()
+
+	accrual := service.NewAccrual(orders, rules, zl)
 	defer accrual.Close()
+
+	accrualPool := worker.NewAccrualPool(accrual, orders, rules, &cfg.Accrual, zl)
+	defer accrualPool.Close()
+	accrualPool.Start(ctx)
 
 	router := handler.NewRouter(zl, cfg, accrual)
 	handler.Serve(ctx, cfg.Server, zl, router)
@@ -64,10 +71,4 @@ func initLogger(cfg *config.Config) (*zap.Logger, error) {
 	}
 	zl.Info("logger initialized")
 	return zl, nil
-}
-
-func initAccrual(f factory.Repo, l *zap.Logger) *service.Accrual {
-	o := f.MakeOrders()
-	r := f.MakeRewardRules()
-	return service.NewAccrual(o, r, l)
 }

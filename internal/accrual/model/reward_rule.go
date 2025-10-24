@@ -1,6 +1,10 @@
 package model
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 var ErrRewardTypeInvalid = errors.New("invalid reward type")
 
@@ -21,9 +25,10 @@ func (r RewardType) IsValid() bool {
 }
 
 type RewardRule struct {
-	Match      string     `json:"match"`
-	Reward     float64    `json:"reward"`
-	RewardType RewardType `json:"reward_type"`
+	Match      string             `json:"match" db:"match_pattern"`
+	Reward     float64            `json:"reward" db:"reward"`
+	RewardType RewardType         `json:"reward_type" db:"reward_type"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at" db:"created_at"`
 }
 
 func NewRewardRule(match string, reward float64, rewardType RewardType) (*RewardRule, error) {

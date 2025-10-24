@@ -22,6 +22,7 @@ func addRoutes(
 	cfg *config.Config,
 	accrual *service.Accrual,
 ) {
+	mux.Use(middleware.Logger)
 	mux.Use(middleware.Compress(mediumCompressLevel))
 
 	rateLimiter := mw.NewEndpointRateLimiter(cfg.Server.RequestsRateLimit, logger)
