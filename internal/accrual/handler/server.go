@@ -16,9 +16,10 @@ func NewRouter(
 	logger *zap.Logger,
 	cfg *config.Config,
 	accrual *service.Accrual,
+	rulesProvider *service.CacheRulesProvider,
 ) http.Handler {
 	r := chi.NewRouter()
-	addRoutes(r, logger, cfg, accrual)
+	addRoutes(r, logger, cfg, accrual, rulesProvider)
 	return r
 }
 

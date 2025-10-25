@@ -3,14 +3,12 @@ package worker
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
 	"go.uber.org/zap"
 )
 
@@ -24,27 +22,32 @@ type ProcessOrdersRepository interface {
 	ResetStuckOrders(ctx context.Context, timeout time.Duration, batchLimit int) (int, error)
 }
 
+type RulesProvider interface {
+	All(ctx context.Context) ([]model.RewardRule, error)
+	MarkDirty()
+	Close()
+}
+
 type AccrualPool struct {
-	processor  OrderProcessor
-	orders     ProcessOrdersRepository
-	rules      service.RulesRepository
-	rulesCache atomic.Pointer[[]model.RewardRule]
-	cfg        config.Accrual
-	jobChan    chan *model.Order
-	logger     *zap.Logger
-	wg         sync.WaitGroup
-	started    atomic.Bool
-	closed     atomic.Bool
+	processor OrderProcessor
+	orders    ProcessOrdersRepository
+	rules     RulesProvider
+	cfg       config.Accrual
+	jobChan   chan *model.Order
+	logger    *zap.Logger
+	wg        sync.WaitGroup
+	started   atomic.Bool
+	closed    atomic.Bool
 }
 
 func NewAccrualPool(
 	p OrderProcessor,
 	o ProcessOrdersRepository,
-	r service.RulesRepository,
+	r RulesProvider,
 	cfg *config.Accrual,
 	l *zap.Logger,
 ) *AccrualPool {
-	ap := &AccrualPool{
+	return &AccrualPool{
 		processor: p,
 		orders:    o,
 		rules:     r,
@@ -52,23 +55,12 @@ func NewAccrualPool(
 		cfg:       *cfg,
 		logger:    l,
 	}
-
-	emptyRules := make([]model.RewardRule, 0)
-	ap.rulesCache.Store(&emptyRules)
-
-	return ap
 }
 
 func (p *AccrualPool) Start(ctx context.Context) {
 	if !p.started.CompareAndSwap(false, true) {
 		return
 	}
-
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		p.startCacheRefresher(ctx)
-	}()
 
 	p.wg.Add(1)
 	go func() {
@@ -140,7 +132,7 @@ func (p *AccrualPool) dispatchBatch(ctx context.Context) {
 
 func (p *AccrualPool) worker(ctx context.Context, workerID int) {
 	for order := range p.jobChan {
-		rules, err := p.getAllRules(ctx)
+		rules, err := p.rules.All(ctx)
 		if err != nil {
 			p.logger.Error("accrual worker pool failed to get all rules",
 				zap.Int("worker_id", workerID),
@@ -199,60 +191,11 @@ func (p *AccrualPool) resetStuckOrders(ctx context.Context) {
 	}
 }
 
-func (p *AccrualPool) getAllRules(ctx context.Context) ([]model.RewardRule, error) {
-	cached := p.rulesCache.Load()
-	if cached != nil && len(*cached) > 0 {
-		return *cached, nil
-	}
-
-	// Кэш пуст - загружаем синхронно
-	rules, err := p.rules.All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get all rules from repo: %w", err)
-	}
-
-	p.updateCache(rules)
-	return rules, nil
-}
-
-func (p *AccrualPool) updateCache(rules []model.RewardRule) {
-	newRules := make([]model.RewardRule, len(rules))
-	copy(newRules, rules)
-	p.rulesCache.Store(&newRules)
-}
-
-func (p *AccrualPool) startCacheRefresher(ctx context.Context) {
-	p.refreshCache(ctx)
-
-	ticker := time.NewTicker(p.cfg.RulesCacheTTL)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			p.refreshCache(ctx)
-		}
-	}
-}
-
-func (p *AccrualPool) refreshCache(ctx context.Context) {
-	rules, err := p.rules.All(ctx)
-	if err != nil {
-		if !errors.Is(err, context.Canceled) {
-			p.logger.Error("failed to refresh rules cache", zap.Error(err))
-		}
-		return
-	}
-
-	p.updateCache(rules)
-	p.logger.Debug("rules cache updated", zap.Int("rules_count", len(rules)))
-}
-
 func (p *AccrualPool) Close() {
 	if !p.closed.CompareAndSwap(false, true) {
 		return
 	}
 	p.wg.Wait()
+	p.rules.Close()
+	p.logger.Info("accrual worker pool closed")
 }

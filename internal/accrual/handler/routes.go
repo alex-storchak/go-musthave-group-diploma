@@ -21,13 +21,14 @@ func addRoutes(
 	logger *zap.Logger,
 	cfg *config.Config,
 	accrual *service.Accrual,
+	rulesProvider *service.CacheRulesProvider,
 ) {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Compress(mediumCompressLevel))
 
 	rateLimiter := mw.NewEndpointRateLimiter(cfg.Server.RequestsRateLimit, logger)
 	mux.Route("/api", func(mux chi.Router) {
-		mux.Post("/goods", handleRewardRule(logger, accrual))
+		mux.Post("/goods", handleRewardRule(logger, accrual, rulesProvider))
 		mux.Route("/orders", func(mux chi.Router) {
 			mux.Post("/", handleOrders(logger, accrual))
 			mux.With(rateLimiter).Get("/{number}", handleOrderNumber(logger, accrual))

@@ -8,6 +8,7 @@ import (
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/codec"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/validator"
 	"go.uber.org/zap"
@@ -49,7 +50,7 @@ func prepareRule(rule reqRewardRule) (*model.RewardRule, error) {
 	return mr, nil
 }
 
-func handleRewardRule(l *zap.Logger, reg RuleRegisterer) http.HandlerFunc {
+func handleRewardRule(l *zap.Logger, reg RuleRegisterer, inv worker.RulesProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rule, err := codec.Decode[reqRewardRule](r)
 		if err != nil {
@@ -80,6 +81,8 @@ func handleRewardRule(l *zap.Logger, reg RuleRegisterer) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		inv.MarkDirty()
 
 		w.WriteHeader(http.StatusOK)
 	}
