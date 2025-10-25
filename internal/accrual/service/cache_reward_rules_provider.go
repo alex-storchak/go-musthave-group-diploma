@@ -101,7 +101,6 @@ func (p *CacheRulesProvider) updateCache(rules []model.RewardRule) {
 }
 
 func (p *CacheRulesProvider) All(ctx context.Context) ([]model.RewardRule, error) {
-	// Первая критическая секция: быстрый чек кэша
 	p.cacheMu.Lock()
 	dirty := p.cacheDirty.Load()
 	cachedPtr := p.cache.Load()
@@ -120,7 +119,6 @@ func (p *CacheRulesProvider) All(ctx context.Context) ([]model.RewardRule, error
 
 }
 
-// Делает I/O и безопасно обновляет кэш с double-check, возвращает актуальные правила.
 func (p *CacheRulesProvider) ensureFreshRules(ctx context.Context) ([]model.RewardRule, error) {
 	rulesFromRepo, err := p.repo.All(ctx)
 	if err != nil {
