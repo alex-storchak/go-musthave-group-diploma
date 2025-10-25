@@ -141,28 +141,6 @@ func (p *CacheRulesProvider) ensureFreshRules(ctx context.Context) ([]model.Rewa
 	return rulesFromRepo, nil
 }
 
-// func (p *CacheRulesProvider) All(ctx context.Context) ([]model.RewardRule, error) {
-// 	p.cacheMu.Lock()
-// 	defer p.cacheMu.Unlock()
-//
-// 	if p.cacheDirty.Load() {
-// 		p.clearCache()
-// 	}
-//
-// 	cached := p.cache.Load()
-// 	if cached != nil && len(*cached) > 0 {
-// 		return *cached, nil
-// 	}
-//
-// 	rules, err := p.repo.All(ctx)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("get all rules from repo: %w", err)
-// 	}
-//
-// 	p.updateCache(rules)
-// 	return rules, nil
-// }
-
 func (p *CacheRulesProvider) Close() {
 	if !p.closed.CompareAndSwap(false, true) {
 		return
