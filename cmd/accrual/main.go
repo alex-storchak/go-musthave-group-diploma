@@ -50,14 +50,18 @@ func run(
 	orders := pgFactory.MakeOrders()
 	rules := pgFactory.MakeRewardRules()
 
+	rulesProvider := service.NewCacheRulesProvider(rules, cfg.Accrual.RulesCacheTTL, zl)
+	defer rulesProvider.Close()
+	rulesProvider.Start(ctx)
+
 	accrual := service.NewAccrual(orders, rules, zl)
 	defer accrual.Close()
 
-	accrualPool := worker.NewAccrualPool(accrual, orders, rules, &cfg.Accrual, zl)
+	accrualPool := worker.NewAccrualPool(accrual, orders, rulesProvider, &cfg.Accrual, zl)
 	defer accrualPool.Close()
 	accrualPool.Start(ctx)
 
-	router := handler.NewRouter(zl, cfg, accrual, accrualPool)
+	router := handler.NewRouter(zl, cfg, accrual, rulesProvider)
 	handler.Serve(ctx, cfg.Server, zl, router)
 	return nil
 }

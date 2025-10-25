@@ -200,8 +200,8 @@ func (p *PgOrders) ResetStuckOrders(ctx context.Context, timeout time.Duration, 
 			SELECT id, order_number
 			FROM accrual_orders 
 			WHERE status_id = (SELECT id FROM accrual_statuses WHERE code = $2)
-			AND processed_at < CURRENT_TIMESTAMP - ($3 * INTERVAL '1 second')
-			ORDER BY processed_at ASC
+			AND registered_at < CURRENT_TIMESTAMP - ($3 * INTERVAL '1 second')
+			ORDER BY registered_at ASC
 			LIMIT $4
 			FOR UPDATE SKIP LOCKED
 		)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/codec"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/validator"
 	"go.uber.org/zap"
@@ -41,10 +42,6 @@ type RuleRegisterer interface {
 	RegisterRule(ctx context.Context, rule *model.RewardRule) error
 }
 
-type RulesCacheInvalidator interface {
-	MarkCacheDirty()
-}
-
 func prepareRule(rule reqRewardRule) (*model.RewardRule, error) {
 	mr, err := model.NewRewardRule(rule.Match, rule.Reward, model.RewardType(rule.RewardType))
 	if err != nil {
@@ -53,7 +50,7 @@ func prepareRule(rule reqRewardRule) (*model.RewardRule, error) {
 	return mr, nil
 }
 
-func handleRewardRule(l *zap.Logger, reg RuleRegisterer, inv RulesCacheInvalidator) http.HandlerFunc {
+func handleRewardRule(l *zap.Logger, reg RuleRegisterer, inv worker.RulesProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rule, err := codec.Decode[reqRewardRule](r)
 		if err != nil {
@@ -85,7 +82,7 @@ func handleRewardRule(l *zap.Logger, reg RuleRegisterer, inv RulesCacheInvalidat
 			return
 		}
 
-		inv.MarkCacheDirty()
+		inv.MarkDirty()
 
 		w.WriteHeader(http.StatusOK)
 	}
