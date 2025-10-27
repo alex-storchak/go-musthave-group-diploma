@@ -1,44 +1,44 @@
 package validators
 
 import (
-	"context"
 	"fmt"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/utils"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	"io"
 	"net/http"
 )
 
-type StoreOrder struct {
-	UserID int64  `json:"user_id"`
-	Number string `json:"order_number"`
+type StoreOrderWrapper struct {
+	*models.StoreOrder
 }
 
-func (r *StoreOrder) Valid(ctx context.Context) map[string]string {
-	problems := make(map[string]string)
+func (o *StoreOrderWrapper) Valid(r *http.Request) (map[string]map[string]string, error) {
+	problems := make(map[string]map[string]string)
 
-	if r.Number == "" {
-		problems["order_number_required"] = "where is number"
-	}
-
-	if !isValidLuhn(r.Number) {
-		problems["order_number_valid"] = "the number is not valid"
-	}
-
-	return problems
-}
-
-func DecodeStoreOrder(r *http.Request) (StoreOrder, map[string]string, error) {
-	var order StoreOrder
-
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1024))
 	if err != nil {
-		return order, nil, fmt.Errorf("error reading request body: %w", err)
+		return problems, fmt.Errorf("error reading request body: %w", err)
 	}
 	defer r.Body.Close()
 
-	order.Number = string(body)
+	number := utils.RemoveWhitespaces(string(body))
 
-	if problems := order.Valid(r.Context()); len(problems) > 0 {
-		return order, problems, fmt.Errorf("invalid %T: %d problems", order, len(problems))
+	numberProblem := make(map[string]string)
+	if number == "" {
+		numberProblem["required"] = "number is required"
+	} else if !utils.IsNumericRegex(number) {
+		numberProblem["is_numeric"] = "number must contain only digits"
+	} else if !utils.IsValidLuhn(number) {
+		numberProblem["is_valid"] = "the number is not valid according to the Luhn algorithm"
 	}
-	return order, nil, nil
+
+	if len(numberProblem) > 0 {
+		problems["number"] = numberProblem
+	}
+
+	if len(problems["number"]) == 0 {
+		o.StoreOrder.Number = number
+	}
+
+	return problems, nil
 }
