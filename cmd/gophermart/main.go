@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/db"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/logging"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/gophermart"
+	"gorm.io/gorm"
 	"io"
 	"os"
 	"os/signal"
@@ -30,18 +30,24 @@ func run(ctx context.Context, stderr io.Writer, args []string) error {
 
 	defer func() {
 		if sErr := zl.Sync(); sErr != nil {
-			_, _ = fmt.Fprintf(stderr, "logger sync error: %v\n", sErr)
+			_, _ = fmt.Fprintf(stderr, "logger sync error: %v", sErr)
 		}
 	}()
 
-	conn, err := db.InitDB(cfg)
+	conn, err := db.InitGORMDB(cfg)
 	if err != nil {
 		return fmt.Errorf("init db error: %w", err)
 	}
-	defer func(conn *sql.DB) {
-		err = conn.Close()
+	defer func(conn *gorm.DB) {
+		sqlDB, err := conn.DB()
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "close db error: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "error getting underlying DB: %v", err)
+			return
+		}
+
+		err = sqlDB.Close()
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "close db error: %v", err)
 		}
 	}(conn)
 

@@ -10,6 +10,9 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.0
+	gorm.io/driver/postgres v1.6.0
+	gorm.io/gorm v1.31.0
+	moul.io/zapgorm2 v1.3.0
 )
 
 require (
@@ -31,6 +34,8 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect

@@ -47,5 +47,7 @@ func GetConfig(args []string) (*Config, error) {
 		return &Config{}, err
 	}
 
+	cfg.Handlers.CompressLevel = 5
+
 	return &cfg, nil
 }

@@ -1,18 +1,22 @@
 package migrator
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-func ApplyMigrations(db *sql.DB, dirName string) error {
+func ApplyMigrations(db *gorm.DB, dirName string) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying sql.DB: %w", err)
+	}
 
-	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("unable to create db instance: %v", err)
 	}

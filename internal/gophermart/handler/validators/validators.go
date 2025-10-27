@@ -1,38 +1,34 @@
 package validators
 
 import (
-	"context"
-	"strconv"
+	"fmt"
+	"net/http"
 	"strings"
 )
 
 type Validator interface {
-	Valid(ctx context.Context) map[string]string
+	Valid(r *http.Request) (map[string]map[string]string, error)
 }
 
-// Функция проверки номера по алгоритму Луна
-func isValidLuhn(number string) bool {
-	// Удаляем все нецифровые символы
-	number = strings.ReplaceAll(number, " ", "")
-	number = strings.ReplaceAll(number, "-", "")
-
-	sum := 0
-	isEven := false
-
-	// Проходим по номеру справа налево
-	for i := len(number) - 1; i >= 0; i-- {
-		digit, _ := strconv.Atoi(string(number[i]))
-
-		if isEven {
-			digit *= 2
-			if digit > 9 {
-				digit = digit - 9
-			}
-		}
-
-		sum += digit
-		isEven = !isEven
+func DecodeTextPlain(r *http.Request, v Validator) (map[string]map[string]string, error) {
+	problems, err := v.Valid(r)
+	if err != nil {
+		return nil, err
 	}
 
-	return sum%10 == 0
+	if len(problems) > 0 {
+		return problems, nil
+	}
+
+	return nil, nil
+}
+
+func ValidErrToStr(errors map[string]map[string]string) string {
+	result := ""
+	for property, e := range errors {
+		for key, value := range e {
+			result += fmt.Sprintf("%s: %s: %s\n", property, key, value)
+		}
+	}
+	return strings.TrimSuffix(result, "\n")
 }

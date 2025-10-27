@@ -7,24 +7,25 @@ import (
 	localmiddleware "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/gophermart"
 	"github.com/go-chi/chi/v5"
-
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
 func addRoutes(
 	mux *chi.Mux,
 	logger *zap.Logger,
-	_ *config.Config,
+	cfg *config.Config,
 	gophermart *gophermart.Gophermart,
 ) {
 	mux.Use(localmiddleware.RequestLogger(logger))
-	mux.Use(localmiddleware.GzipMiddleware(logger))
+	mux.Use(middleware.Compress(cfg.CompressLevel))
 
 	mux.Route("/api", func(mux chi.Router) {
 		mux.Get("/ping", ping.Ping(logger, gophermart))
 
 		mux.Route("/user", func(mux chi.Router) {
 			mux.Route("/orders", func(mux chi.Router) {
+				mux.Get("/", orders.Index(logger, gophermart))
 				mux.Post("/", orders.Store(logger, gophermart))
 			})
 		})

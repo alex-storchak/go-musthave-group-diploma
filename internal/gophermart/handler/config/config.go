@@ -1,6 +1,7 @@
 package config
 
 type Config struct {
-	ServerAddr string
-	SecretKey  string
+	ServerAddr    string
+	SecretKey     string
+	CompressLevel int
 }
