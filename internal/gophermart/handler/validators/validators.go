@@ -10,7 +10,7 @@ type Validator interface {
 	Valid(r *http.Request) (map[string]map[string]string, error)
 }
 
-func DecodeTextPlain(r *http.Request, v Validator) (map[string]map[string]string, error) {
+func Decode(r *http.Request, v Validator) (map[string]map[string]string, error) {
 	problems, err := v.Valid(r)
 	if err != nil {
 		return nil, err

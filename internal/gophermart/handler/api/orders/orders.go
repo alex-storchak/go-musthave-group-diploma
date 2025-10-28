@@ -14,7 +14,7 @@ import (
 )
 
 type Gophermart interface {
-	IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.Order, <-chan error)
+	IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error)
 	StoreOrder(ctx context.Context, storeOrder models.StoreOrder) error
 	GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error)
 }
@@ -96,7 +96,7 @@ func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			StoreOrder: &models.StoreOrder{},
 		}
 
-		problems, err := validators.DecodeTextPlain(r, storeOrderWrapper)
+		problems, err := validators.Decode(r, storeOrderWrapper)
 		if err != nil {
 			logger.Debug("bad request", zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)

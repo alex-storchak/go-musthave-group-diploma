@@ -11,35 +11,19 @@ const (
 	OrderProcessed              = "PROCESSED"
 )
 
-var (
-	OrderStatusMap = map[OrderStatus]int8{
-		OrderNew:        1,
-		OrderProcessing: 2,
-		OrderInvalid:    3,
-		OrderProcessed:  4,
-	}
-
-	OrderStatusByIndex = map[int8]OrderStatus{
-		1: OrderNew,
-		2: OrderProcessing,
-		3: OrderInvalid,
-		4: OrderProcessed,
-	}
-)
-
 type Order struct {
-	ID          int64      `json:"id" gorm:"primaryKey"`
-	UserID      int64      `json:"user_id" `
-	Number      string     `json:"order_number" gorm:"column:order_number;uniqueIndex:orders_order_number_key"`
-	StatusID    int8       `json:"status_id"`
-	UploadedAt  *time.Time `json:"uploaded_at"`
-	ProcessedAt *time.Time `json:"processed_at"`
+	Number      string      `json:"order_number" gorm:"column:order_number;primaryKey"`
+	UserID      int64       `json:"user_id"`
+	Status      OrderStatus `json:"status"`
+	Accrual     int         `json:"accrual,omitempty"`
+	UploadedAt  *time.Time  `json:"uploaded_at" gorm:"default:current_timestamp"`
+	ProcessedAt *time.Time  `json:"processed_at,omitempty"`
 }
 
 type IndexOrderResponse struct {
-	Number     string     `json:"number" gorm:"column:order_number"`
-	StatusID   string     `json:"status"`
-	Accrual    int        `json:"accrual"`
+	Number     string     `json:"number" gorm:"column:order_number;primaryKey"`
+	Status     string     `json:"status"`
+	Accrual    int        `json:"accrual,omitempty"`
 	UploadedAt *time.Time `json:"uploaded_at"`
 }
 
@@ -54,4 +38,9 @@ type StoreOrder struct {
 
 type GetOrder struct {
 	Number string `json:"order_number"`
+}
+
+type GetOrderUser struct {
+	Number string `json:"order_number"`
+	UserID int64  `json:"user_id"`
 }

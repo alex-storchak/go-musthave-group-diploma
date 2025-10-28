@@ -39,6 +39,27 @@ func (st *Store) Ping(ctx context.Context) error {
 func newErrOrderNotFound(id string) error {
 	return fmt.Errorf("%w for number = %s", myerrors.ErrOrderNotFound, id)
 }
+func newErrBalanceNotFound(id int64) error {
+	return fmt.Errorf("%w for user_id = %s", myerrors.ErrBalanceNotFound, id)
+}
+
+func (st *Store) GetOrderUser(ctx context.Context, getOrderUser models.GetOrderUser) (*models.Order, error) {
+	var order models.Order
+
+	result := st.conn.WithContext(ctx).
+		Where("order_number = ?", getOrderUser.Number).
+		Where("user_id = ?", getOrderUser.UserID).
+		First(&order)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, newErrOrderNotFound(getOrderUser.Number)
+		}
+		return nil, fmt.Errorf("failed to get order: %w", result.Error)
+	}
+
+	return &order, nil
+}
 
 func (st *Store) GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error) {
 	var order models.Order
@@ -58,10 +79,11 @@ func (st *Store) GetOrder(ctx context.Context, getOrder models.GetOrder) (*model
 }
 
 func (st *Store) SetOrder(ctx context.Context, storeOrder models.StoreOrder) error {
+
 	order := models.Order{
-		UserID:   storeOrder.UserID,
-		Number:   storeOrder.Number,
-		StatusID: models.OrderStatusMap[models.OrderNew],
+		UserID: storeOrder.UserID,
+		Number: storeOrder.Number,
+		Status: models.OrderNew,
 	}
 
 	result := st.conn.WithContext(ctx).Create(&order)
@@ -77,8 +99,8 @@ func (st *Store) SetOrder(ctx context.Context, storeOrder models.StoreOrder) err
 	return nil
 }
 
-func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.Order, <-chan error) {
-	ordersChan := make(chan models.Order)
+func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error) {
+	ordersChan := make(chan models.IndexOrderResponse)
 	errorChan := make(chan error, 1)
 	chunkSize := 1000
 	var lastUploadedAt *time.Time
@@ -92,17 +114,19 @@ func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (
 			case <-ctx.Done():
 				return
 			default:
-				var orders []models.Order
+				var orders []models.IndexOrderResponse
 				var query *gorm.DB
 
 				if lastUploadedAt == nil {
 					query = st.conn.
 						WithContext(ctx).
+						Table("orders").
 						Where("user_id = ?", indexOrder.UserID).
 						Order("uploaded_at asc")
 				} else {
 					query = st.conn.
 						WithContext(ctx).
+						Table("orders").
 						Where("user_id = ?", indexOrder.UserID).
 						Where("uploaded_at > ?", *lastUploadedAt).
 						Order("uploaded_at asc")
@@ -134,4 +158,41 @@ func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (
 	}()
 
 	return ordersChan, errorChan
+}
+
+func (st *Store) GetBalance(ctx context.Context, getBalance models.GetBalanceRequest) (*models.ShowBalanceResponse, error) {
+	var balance models.ShowBalanceResponse
+
+	result := st.conn.WithContext(ctx).
+		Table("balance").
+		Where("user_id = ?", getBalance.UserID).
+		First(&balance)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, newErrBalanceNotFound(getBalance.UserID)
+		}
+		return nil, fmt.Errorf("get order: %w", result.Error)
+	}
+
+	return &balance, nil
+}
+
+func (st *Store) SetDefaultBalance(ctx context.Context, setDefaultBalance models.SetDefaultBalanceRequest) error {
+	balance := models.Balance{
+		UserID:         setDefaultBalance.UserID,
+		Current:        setDefaultBalance.Current,
+		TotalWithdrawn: setDefaultBalance.TotalWithdrawn,
+	}
+
+	result := st.conn.
+		Table("balance").
+		WithContext(ctx).
+		Create(&balance)
+
+	if result.Error != nil {
+		return fmt.Errorf("create default balance: %w", result.Error)
+	}
+
+	return nil
 }
