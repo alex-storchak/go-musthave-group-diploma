@@ -16,7 +16,7 @@ var (
 
 func ErrorValidateJSONResponse(w http.ResponseWriter, messages map[string]map[string]string, code int) {
 	errResp := models.ErrorJSONResponse{
-		Errors: messages,
+		Message: messages,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

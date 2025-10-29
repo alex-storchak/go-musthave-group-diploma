@@ -1,5 +1,5 @@
 package models
 
 type ErrorJSONResponse struct {
-	Errors map[string]map[string]string `json:"errors"`
+	Message map[string]map[string]string `json:"errors"`
 }
