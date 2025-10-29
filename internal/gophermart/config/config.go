@@ -15,7 +15,13 @@ type Config struct {
 func GetConfig(args []string) (*Config, error) {
 	cfg := Config{
 		Handlers: &config.Config{
-			ServerAddr: "localhost:8080",
+			ServerAddr:    config.DefaultServerAddr,
+			CompressLevel: config.DefaultCompressLevel,
+			AuthConfig: config.AuthConfig{
+				AuthCookieName:     config.DefaultAuthCookieName,
+				AuthSecretKey:      config.DefaultAuthSecretKey,
+				AuthExpireDuration: config.DefaultAuthExpireDuration,
+			},
 		},
 		DatabaseDsn: "host=127.127.126.41 port=5432 dbname=shorturl user=shorturl password=shorturl connect_timeout=10 sslmode=prefer",
 		LogLevel:    "info",
@@ -33,21 +39,19 @@ func GetConfig(args []string) (*Config, error) {
 		cfg.DatabaseDsn = databaseDsn
 	}
 
-	if secretKey := os.Getenv("SECRET_KEY"); secretKey != "" {
-		cfg.Handlers.SecretKey = secretKey
+	if secretKey := os.Getenv("AUTH_SECRET_KEY"); secretKey != "" {
+		cfg.Handlers.AuthSecretKey = secretKey
 	}
 
 	fs := flag.NewFlagSet("myFlagSet", flag.ContinueOnError)
 	fs.StringVar(&cfg.Handlers.ServerAddr, "a", cfg.Handlers.ServerAddr, "address of HTTP server")
 	fs.StringVar(&cfg.LogLevel, "l", cfg.LogLevel, "log level")
 	fs.StringVar(&cfg.DatabaseDsn, "d", cfg.DatabaseDsn, "connection string")
-	fs.StringVar(&cfg.Handlers.SecretKey, "s", cfg.Handlers.SecretKey, "secret key")
+	fs.StringVar(&cfg.Handlers.AuthSecretKey, "s", cfg.Handlers.AuthSecretKey, "secret key")
 	err := fs.Parse(args)
 	if err != nil {
 		return &Config{}, err
 	}
-
-	cfg.Handlers.CompressLevel = 5
 
 	return &cfg, nil
 }

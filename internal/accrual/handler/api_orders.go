@@ -87,7 +87,7 @@ func handleOrders(l *zap.Logger, reg OrderRegisterer) http.HandlerFunc {
 
 		_, err = validator.IsValid(order)
 		if err != nil {
-			l.Debug("decode request and check validity", zap.Error(err))
+			l.Debug("check validity", zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

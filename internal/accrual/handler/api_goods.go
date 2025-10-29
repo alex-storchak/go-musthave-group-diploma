@@ -61,7 +61,7 @@ func handleRewardRule(l *zap.Logger, reg RuleRegisterer, inv worker.RulesProvide
 
 		_, err = validator.IsValid(rule)
 		if err != nil {
-			l.Debug("decode request and check validity", zap.Error(err))
+			l.Debug("check validity", zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

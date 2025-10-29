@@ -39,6 +39,7 @@ func run(
 		return fmt.Errorf("initialize logger: %w", err)
 	}
 	defer func() {
+		//nolint:errcheck // there isn't any good strategy to log error
 		_ = zl.Sync()
 	}()
 
