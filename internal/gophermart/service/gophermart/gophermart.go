@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/pg"
 	"gorm.io/gorm"
@@ -33,6 +32,10 @@ func (f *Gophermart) Ping(ctx context.Context) error {
 	return f.store.Ping(ctx)
 }
 
+func (f *Gophermart) CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error) {
+	return f.store.CountOrder(ctx, indexOrder)
+}
+
 func (f *Gophermart) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error) {
 	return f.store.IndexOrder(ctx, indexOrder)
 }
@@ -53,31 +56,14 @@ func (f *Gophermart) CreateDefaultBalance(ctx context.Context, setDefaultBalance
 	return f.store.SetDefaultBalance(ctx, setDefaultBalance)
 }
 
-func (f *Gophermart) StoreWithdrawal(ctx context.Context, storeWithdrawal models.StoreWithdrawal) error {
-	_, err := f.store.GetOrderUser(ctx, models.GetOrderUser{
-		Number: storeWithdrawal.Number,
-		UserID: storeWithdrawal.UserID,
-	})
-	if err != nil {
-		return err
-	}
+func (f *Gophermart) StoreWithdrawal(ctx context.Context, storeWithdrawal models.StoreWithdrawal, setDefaultBalance models.SetDefaultBalanceRequest) error {
+	return f.store.StoreWithdrawal(ctx, storeWithdrawal, setDefaultBalance)
+}
 
-	balance, err := f.store.GetBalance(ctx, models.GetBalanceRequest{
-		UserID: storeWithdrawal.UserID,
-	})
-	if err != nil {
-		return err
-	}
+func (f *Gophermart) CountWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) (int64, error) {
+	return f.store.CountWithdrawal(ctx, indexWithdrawal)
+}
 
-	if balance == nil {
-		return myerrors.ErrNoBalance
-	}
-
-	if (balance.Current - storeWithdrawal.Sum) < 0 {
-		return myerrors.ErrBalance
-	}
-
-	//
-
-	return nil
+func (f *Gophermart) IndexWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) (<-chan models.IndexWithdrawalResponse, <-chan error) {
+	return f.store.IndexWithdrawal(ctx, indexWithdrawal)
 }

@@ -12,7 +12,6 @@ var (
 	ErrBalanceNotFound = errors.New("not found balance")
 	ErrConflictNumber  = errors.New("number conflict")
 	ErrBalance         = errors.New("insufficient funds")
-	ErrNoBalance       = errors.New("no balance")
 )
 
 func ErrorValidateJSONResponse(w http.ResponseWriter, messages map[string]map[string]string, code int) {

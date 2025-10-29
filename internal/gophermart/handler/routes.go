@@ -35,6 +35,8 @@ func addRoutes(
 				mux.Get("/", balance.Show(logger, gophermart))
 				mux.Post("/withdraw", withdrawals.Store(logger, gophermart))
 			})
+
+			mux.Get("/withdrawals", withdrawals.Index(logger, gophermart))
 		})
 	})
 }
