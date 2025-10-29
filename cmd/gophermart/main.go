@@ -16,13 +16,6 @@ import (
 	"os/signal"
 )
 
-func main() {
-	ctx := context.Background()
-	if err := run(ctx, os.Args); err != nil {
-		log.Fatalf("failed to run application: %v", err)
-	}
-}
-
 func run(ctx context.Context, args []string) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
@@ -68,4 +61,11 @@ func run(ctx context.Context, args []string) error {
 	router := handler.NewRouter(zl, cfg.Handlers, gmart, auth)
 
 	return handler.Serve(ctx, zl, cfg.Handlers, router)
+}
+
+func main() {
+	ctx := context.Background()
+	if err := run(ctx, os.Args); err != nil {
+		log.Fatalf("failed to run application: %v", err)
+	}
 }
