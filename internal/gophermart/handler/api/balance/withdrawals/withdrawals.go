@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	utils "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/utils/auth"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/validators"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
@@ -22,7 +23,13 @@ type Gophermart interface {
 func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		userID := int64(1)
+
+		userID, err := utils.GetCtxUserID(r.Context())
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
 		indexWithdrawal := models.IndexWithdrawal{UserID: userID}
 
 		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
@@ -121,7 +128,11 @@ func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			return
 		}
 
-		userID := int64(1)
+		userID, err := utils.GetCtxUserID(r.Context())
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		err = gophermart.StoreWithdrawal(r.Context(), models.StoreWithdrawal{
 			Number: storeWithdrawalWrapper.StoreWithdrawalRequest.Number,

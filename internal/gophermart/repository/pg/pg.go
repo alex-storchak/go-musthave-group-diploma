@@ -39,8 +39,8 @@ func (st *Store) Ping(ctx context.Context) error {
 func newErrOrderNotFound(id string) error {
 	return fmt.Errorf("%w for number = %s", myerrors.ErrOrderNotFound, id)
 }
-func newErrBalanceNotFound(id int64) error {
-	return fmt.Errorf("%w for user_id = %s", myerrors.ErrBalanceNotFound, id)
+func newErrBalanceNotFound(id models.UserID) error {
+	return fmt.Errorf("%w for user_id = %d", myerrors.ErrBalanceNotFound, id)
 }
 
 func (st *Store) GetOrderUser(ctx context.Context, getOrderUser models.GetOrderUser) (*models.Order, error) {

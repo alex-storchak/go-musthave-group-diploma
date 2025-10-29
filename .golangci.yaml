@@ -225,8 +225,8 @@ linters:
 
 
 formatters:
-  enable:
-    - gofumpt
+  enable: []
+#    - gofumpt
 
   settings:
     # Опциональные настройки для форматирования

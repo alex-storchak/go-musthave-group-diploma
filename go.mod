@@ -5,14 +5,15 @@ go 1.24.5
 require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/httprate v0.15.0
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/crypto v0.37.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.0
-	moul.io/zapgorm2 v1.3.0
 )
 
 require (
@@ -40,7 +41,6 @@ require (
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 )

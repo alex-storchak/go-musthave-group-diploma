@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/gophermart"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -15,10 +16,11 @@ import (
 func NewRouter(
 	logger *zap.Logger,
 	cfg *config.Config,
-	gophermart *gophermart.Gophermart,
+	gmart *gophermart.Gophermart,
+	auth *service.Auth,
 ) http.Handler {
 	r := chi.NewRouter()
-	addRoutes(r, logger, cfg, gophermart)
+	addRoutes(r, logger, cfg, gmart, auth)
 	return r
 }
 
