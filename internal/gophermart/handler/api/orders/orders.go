@@ -14,7 +14,8 @@ import (
 )
 
 type Gophermart interface {
-	IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.Order, <-chan error)
+	CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error)
+	IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error)
 	StoreOrder(ctx context.Context, storeOrder models.StoreOrder) error
 	GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error)
 }
@@ -28,6 +29,18 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 		defer cancel()
 
+		count, err := gophermart.CountOrder(ctx, indexOrder)
+		if err != nil {
+			logger.Error("count order", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if count < 1 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
 		ordersChan, errChan := gophermart.IndexOrder(ctx, indexOrder)
 
 		flusher, ok := w.(http.Flusher)
@@ -37,7 +50,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			return
 		}
 
-		_, err := w.Write([]byte("[\n"))
+		_, err = w.Write([]byte("[\n"))
 		if err != nil {
 			logger.Error("error writing start of json array", zap.Error(err))
 			return
@@ -96,7 +109,7 @@ func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			StoreOrder: &models.StoreOrder{},
 		}
 
-		problems, err := validators.DecodeTextPlain(r, storeOrderWrapper)
+		problems, err := validators.Decode(r, storeOrderWrapper)
 		if err != nil {
 			logger.Debug("bad request", zap.Error(err))
 			w.WriteHeader(http.StatusBadRequest)
