@@ -51,9 +51,3 @@ func HandleLogin(cfg *config.Config, l *zap.Logger, auth UserLoginer) http.Handl
 		w.WriteHeader(http.StatusOK)
 	}
 }
-
-// 	user, ok := middleware.GetUserFromContext(r.Context())
-// 	if !ok {
-// 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-// 		return
-// 	}
