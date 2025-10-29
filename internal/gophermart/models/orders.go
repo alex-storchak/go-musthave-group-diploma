@@ -13,7 +13,7 @@ const (
 
 type Order struct {
 	Number      string      `json:"order_number" gorm:"column:order_number;primaryKey"`
-	UserID      int64       `json:"user_id"`
+	UserID      UserID      `json:"user_id"`
 	Status      OrderStatus `json:"status"`
 	Accrual     float64     `json:"accrual,omitempty"`
 	UploadedAt  *time.Time  `json:"uploaded_at" gorm:"default:current_timestamp"`
@@ -28,11 +28,11 @@ type IndexOrderResponse struct {
 }
 
 type IndexOrder struct {
-	UserID int64 `json:"user_id"`
+	UserID UserID `json:"user_id"`
 }
 
 type StoreOrder struct {
-	UserID int64  `json:"user_id"`
+	UserID UserID `json:"user_id"`
 	Number string `json:"order_number"`
 }
 
@@ -42,5 +42,5 @@ type GetOrder struct {
 
 type GetOrderUser struct {
 	Number string `json:"order_number"`
-	UserID int64  `json:"user_id"`
+	UserID UserID `json:"user_id"`
 }

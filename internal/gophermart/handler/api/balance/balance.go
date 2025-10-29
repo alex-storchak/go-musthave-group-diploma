@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/codec"
+	utils "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/utils/auth"
 	_ "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/validators"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
@@ -20,7 +21,13 @@ type Gophermart interface {
 func Show(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		userID := int64(1)
+
+		userID, err := utils.GetCtxUserID(r.Context())
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
 		indexOrder := models.GetBalanceRequest{UserID: userID}
 
 		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)

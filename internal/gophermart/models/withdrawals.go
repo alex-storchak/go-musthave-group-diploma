@@ -10,11 +10,11 @@ type StoreWithdrawalRequest struct {
 type StoreWithdrawal struct {
 	Number string  `json:"order_number" gorm:"column:order_number;primaryKey"`
 	Sum    float64 `json:"sum"`
-	UserID int64   `json:"user_id"`
+	UserID UserID  `json:"user_id"`
 }
 
 type IndexWithdrawal struct {
-	UserID int64 `json:"user_id"`
+	UserID UserID `json:"user_id"`
 }
 
 type IndexWithdrawalResponse struct {

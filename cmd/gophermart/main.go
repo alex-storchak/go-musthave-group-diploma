@@ -11,7 +11,6 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/gophermart"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -19,12 +18,12 @@ import (
 
 func main() {
 	ctx := context.Background()
-	if err := run(ctx, os.Stderr, os.Args); err != nil {
+	if err := run(ctx, os.Args); err != nil {
 		log.Fatalf("failed to run application: %v", err)
 	}
 }
 
-func run(ctx context.Context, stderr io.Writer, args []string) error {
+func run(ctx context.Context, args []string) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
@@ -37,11 +36,9 @@ func run(ctx context.Context, stderr io.Writer, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to initialize logger: %w", err)
 	}
-
 	defer func() {
-		if sErr := zl.Sync(); sErr != nil {
-			_, _ = fmt.Fprintf(stderr, "logger sync error: %v", sErr)
-		}
+		//nolint:errcheck // there isn't any good strategy to log error
+		_ = zl.Sync()
 	}()
 
 	conn, err := db.InitGORMDB(cfg)
