@@ -17,7 +17,7 @@ func (o *StoreOrderWrapper) Valid(r *http.Request) (map[string]map[string]string
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1024))
 	if err != nil {
-		return problems, fmt.Errorf("error reading request body: %w", err)
+		return problems, fmt.Errorf("reading request body: %w", err)
 	}
 	defer r.Body.Close()
 

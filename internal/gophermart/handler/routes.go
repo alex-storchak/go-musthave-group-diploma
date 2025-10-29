@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/balance"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/balance/withdrawals"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/orders"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/ping"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
@@ -28,6 +30,13 @@ func addRoutes(
 				mux.Get("/", orders.Index(logger, gophermart))
 				mux.Post("/", orders.Store(logger, gophermart))
 			})
+
+			mux.Route("/balance", func(mux chi.Router) {
+				mux.Get("/", balance.Show(logger, gophermart))
+				mux.Post("/withdraw", withdrawals.Store(logger, gophermart))
+			})
+
+			mux.Get("/withdrawals", withdrawals.Index(logger, gophermart))
 		})
 	})
 }
