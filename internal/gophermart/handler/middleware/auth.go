@@ -14,7 +14,7 @@ type AuthUserValidator interface {
 	ValidateToken(token string) (models.UserID, error)
 }
 
-func AuthMiddleware(
+func NewAuth(
 	cfg *config.Config,
 	logger *zap.Logger,
 	auth AuthUserValidator,
