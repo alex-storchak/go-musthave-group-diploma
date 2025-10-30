@@ -6,9 +6,9 @@ type OrderStatus string
 
 const (
 	OrderNew        OrderStatus = "NEW"
-	OrderProcessing             = "PROCESSING"
-	OrderInvalid                = "INVALID"
-	OrderProcessed              = "PROCESSED"
+	OrderProcessing OrderStatus = "PROCESSING"
+	OrderInvalid    OrderStatus = "INVALID"
+	OrderProcessed  OrderStatus = "PROCESSED"
 )
 
 type Order struct {
