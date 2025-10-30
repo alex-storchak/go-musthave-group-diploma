@@ -40,7 +40,6 @@ func SetAuthCookie(cfg *config.Config, w http.ResponseWriter, token string) {
 		Value:    token,
 		Expires:  time.Now().Add(cfg.AuthExpireDuration),
 		HttpOnly: true,
-		Secure:   true,
 	})
 }
 
