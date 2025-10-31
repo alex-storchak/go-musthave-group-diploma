@@ -171,7 +171,7 @@ func (f *ProcessOrder) startAccrualWorker(
 		} else {
 			f.logger.Info("order processed successfully",
 				zap.String("order_number", accrualResponse.Number),
-				zap.Float64("accrual", accrualResponse.Accrual))
+				zap.Float64("accrual", float64(accrualResponse.Accrual)))
 		}
 
 	default:

@@ -15,7 +15,7 @@ import (
 
 type Gophermart interface {
 	CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error)
-	IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error)
+	IndexOrder(ctx context.Context, indexOrder models.IndexOrder) ([]models.IndexOrderResponse, error)
 	StoreOrder(ctx context.Context, storeOrder models.StoreOrder) error
 	GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error)
 }
@@ -24,6 +24,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
+		// Получаем ID пользователя из контекста
 		userID, err := utils.GetCtxUserID(r.Context())
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -32,9 +33,11 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 
 		indexOrder := models.IndexOrder{UserID: userID}
 
+		// Устанавливаем таймаут контекста
 		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 		defer cancel()
 
+		// Проверяем количество записей
 		count, err := gophermart.CountOrder(ctx, indexOrder)
 		if err != nil {
 			logger.Error("count order", zap.Error(err))
@@ -47,65 +50,27 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			return
 		}
 
-		ordersChan, errChan := gophermart.IndexOrder(ctx, indexOrder)
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			logger.Error("streaming not supported")
+		// Получаем все заказы сразу (синхронно)
+		orders, err := gophermart.IndexOrder(ctx, indexOrder) // Теперь возвращает []models.IndexOrderResponse, error
+		if err != nil {
+			logger.Error("index order", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		_, err = w.Write([]byte("[\n"))
+		// Формируем JSON-ответ
+		response, err := json.Marshal(orders)
 		if err != nil {
-			logger.Error("error writing start of json array", zap.Error(err))
+			logger.Error("marshal orders to json", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		encoder := json.NewEncoder(w)
-		isFirst := true
-
-		for {
-			select {
-			case order, ok := <-ordersChan:
-				if !ok {
-					if _, err = w.Write([]byte("\n]")); err != nil {
-						logger.Error("error writing end of json array", zap.Error(err))
-					}
-					return
-				}
-
-				if !isFirst {
-					if _, err = w.Write([]byte(",\n")); err != nil {
-						logger.Error("error writing comma", zap.Error(err))
-						return
-					}
-				}
-				isFirst = false
-
-				if err = encoder.Encode(order); err != nil {
-					logger.Error("error encoding order", zap.Error(err))
-					return
-				}
-
-				flusher.Flush()
-
-			case err = <-errChan:
-				if err != nil {
-					logger.Error("error index order", zap.Error(err))
-				}
-				if _, err = w.Write([]byte("\n]")); err != nil {
-					logger.Error("error writing end of json array", zap.Error(err))
-				}
-				return
-
-			case <-ctx.Done():
-				logger.Info("request context canceled")
-				if _, err = w.Write([]byte("\n]")); err != nil {
-					logger.Error("error writing end of json array", zap.Error(err))
-				}
-				return
-			}
+		// Отправляем ответ
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(response)
+		if err != nil {
+			logger.Error("write response", zap.Error(err))
 		}
 	}
 }
