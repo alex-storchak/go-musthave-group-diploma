@@ -8,10 +8,13 @@ import (
 )
 
 var (
-	ErrOrderNotFound   = errors.New("not found order")
-	ErrBalanceNotFound = errors.New("not found balance")
-	ErrConflictNumber  = errors.New("number conflict")
-	ErrBalance         = errors.New("insufficient funds")
+	ErrOrderNotFound     = errors.New("not found order")
+	ErrBalanceNotFound   = errors.New("not found balance")
+	ErrConflictNumber    = errors.New("number conflict")
+	ErrBalance           = errors.New("insufficient funds")
+	ErrAccrualRetryAfter = errors.New("retry after")
+	ErrAccrualNoOrder    = errors.New("no order")
+	ErrAccrual           = errors.New("error accrual")
 )
 
 func ErrorValidateJSONResponse(w http.ResponseWriter, messages map[string]map[string]string, code int) {

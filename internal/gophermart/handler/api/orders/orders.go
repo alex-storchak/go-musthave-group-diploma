@@ -92,7 +92,6 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 				flusher.Flush()
 
 			case err = <-errChan:
-				logger.Error("stream error", zap.Error(err))
 				if _, err = w.Write([]byte("\n]")); err != nil {
 					logger.Error("error writing end of json array", zap.Error(err))
 				}

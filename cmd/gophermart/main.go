@@ -9,6 +9,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/logging"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/gophermart"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/worker"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"log"
@@ -59,6 +60,9 @@ func run(ctx context.Context, args []string) error {
 	auth := service.NewAuth(cfg.Handlers, conn)
 
 	router := handler.NewRouter(zl, cfg.Handlers, gmart, auth)
+
+	processOrder, err := worker.NewProcessOrder(conn, *cfg, zl)
+	go processOrder.StartProcessOrder(ctx)
 
 	return handler.Serve(ctx, zl, cfg.Handlers, router)
 }

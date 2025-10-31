@@ -20,6 +20,10 @@ type Order struct {
 	ProcessedAt *time.Time  `json:"processed_at,omitempty"`
 }
 
+type OrderProcess struct {
+	Number string `json:"order_number" gorm:"column:order_number;primaryKey"`
+}
+
 type IndexOrderResponse struct {
 	Number     string     `json:"number" gorm:"column:order_number;primaryKey"`
 	Status     string     `json:"status"`

@@ -7,7 +7,6 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/orders"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/ping"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
-	mw "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/gophermart"
 	"github.com/go-chi/chi/v5"
@@ -34,7 +33,7 @@ func addRoutes(
 
 			// auth protected group
 			mux.Group(func(mux chi.Router) {
-				mux.Use(mw.NewAuth(cfg, logger, auth))
+				//mux.Use(mw.NewAuth(cfg, logger, auth))
 
 				mux.Route("/orders", func(mux chi.Router) {
 					mux.Get("/", orders.Index(logger, gophermart))

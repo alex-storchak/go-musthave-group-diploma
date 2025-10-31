@@ -2,32 +2,39 @@ package config
 
 import (
 	"flag"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	handlers "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	accrual "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual/config"
 	"os"
 )
 
 type Config struct {
-	Handlers    *config.Config
+	Handlers    *handlers.Config
+	Accrual     *accrual.Config
 	LogLevel    string
 	DatabaseDsn string
 }
 
 func GetConfig(args []string) (*Config, error) {
 	cfg := Config{
-		Handlers: &config.Config{
-			ServerAddr:    config.DefaultServerAddr,
-			CompressLevel: config.DefaultCompressLevel,
-			AuthConfig: config.AuthConfig{
-				AuthCookieName:     config.DefaultAuthCookieName,
-				AuthSecretKey:      config.DefaultAuthSecretKey,
-				AuthExpireDuration: config.DefaultAuthExpireDuration,
+		Handlers: &handlers.Config{
+			ServerAddr:    handlers.DefaultServerAddr,
+			CompressLevel: handlers.DefaultCompressLevel,
+			AuthConfig: handlers.AuthConfig{
+				AuthCookieName:     handlers.DefaultAuthCookieName,
+				AuthSecretKey:      handlers.DefaultAuthSecretKey,
+				AuthExpireDuration: handlers.DefaultAuthExpireDuration,
 			},
+		},
+		Accrual: &accrual.Config{
+			Addr:              accrual.DefaultAddr,
+			RequestTimeout:    accrual.DefaultRequestTimeout,
+			RetryAfterDefault: accrual.DefaultRetryAfterDefault,
 		},
 		DatabaseDsn: "host=127.127.126.41 port=5432 dbname=shorturl user=shorturl password=shorturl connect_timeout=10 sslmode=prefer",
 		LogLevel:    "info",
 	}
 
-	if serverAddr := os.Getenv("SERVER_ADDRESS"); serverAddr != "" {
+	if serverAddr := os.Getenv("RUN_ADDRESS"); serverAddr != "" {
 		cfg.Handlers.ServerAddr = serverAddr
 	}
 
@@ -35,7 +42,7 @@ func GetConfig(args []string) (*Config, error) {
 		cfg.LogLevel = envLogLevel
 	}
 
-	if databaseDsn := os.Getenv("DATABASE_DSN"); databaseDsn != "" {
+	if databaseDsn := os.Getenv("DATABASE_URI"); databaseDsn != "" {
 		cfg.DatabaseDsn = databaseDsn
 	}
 
@@ -43,11 +50,16 @@ func GetConfig(args []string) (*Config, error) {
 		cfg.Handlers.AuthSecretKey = secretKey
 	}
 
+	if accrualAddr := os.Getenv("ACCRUAL_SYSTEM_ADDRESS"); accrualAddr != "" {
+		cfg.Accrual.Addr = accrualAddr
+	}
+
 	fs := flag.NewFlagSet("myFlagSet", flag.ContinueOnError)
 	fs.StringVar(&cfg.Handlers.ServerAddr, "a", cfg.Handlers.ServerAddr, "address of HTTP server")
 	fs.StringVar(&cfg.LogLevel, "l", cfg.LogLevel, "log level")
 	fs.StringVar(&cfg.DatabaseDsn, "d", cfg.DatabaseDsn, "connection string")
 	fs.StringVar(&cfg.Handlers.AuthSecretKey, "s", cfg.Handlers.AuthSecretKey, "secret key")
+	fs.StringVar(&cfg.Accrual.Addr, "r", cfg.Accrual.Addr, "address accrual")
 	err := fs.Parse(args)
 	if err != nil {
 		return &Config{}, err

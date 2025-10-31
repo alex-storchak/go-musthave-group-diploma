@@ -10,6 +10,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/pg/migrator"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/gorm"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,69 @@ func (st *Store) GetOrderUser(ctx context.Context, getOrderUser models.GetOrderU
 	return &order, nil
 }
 
+func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess) ([]models.OrderProcess, error) {
+
+	var numbers []string
+	for _, order := range orders {
+		numbers = append(numbers, order.Number)
+	}
+
+	ns := "'" + strings.Join(numbers, "','") + "'"
+
+	var result []models.OrderProcess
+
+	err := st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		rows, err := tx.WithContext(ctx).Raw(fmt.Sprintf(`
+			WITH selected_orders AS (
+				SELECT order_number
+				FROM orders
+				WHERE status IN ('NEW', 'PROCESSING')
+				AND order_number NOT IN (%s)
+				ORDER BY uploaded_at ASC
+				LIMIT 100
+				FOR UPDATE
+			),
+			updated_orders AS (
+				UPDATE orders
+				SET
+					status = 'PROCESSING',
+					processed_at = CASE
+						WHEN status = 'NEW' THEN NOW()
+						ELSE processed_at
+					END
+				WHERE order_number IN (SELECT order_number FROM selected_orders)
+				RETURNING order_number, processed_at
+			)
+			SELECT order_number FROM updated_orders ORDER BY processed_at ASC;
+		`, ns)).Rows()
+
+		if err != nil {
+			return fmt.Errorf("run sql: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var order models.OrderProcess
+			if err = rows.Scan(&order.Number); err != nil {
+				return fmt.Errorf("scan order: %w", err)
+			}
+			result = append(result, order)
+		}
+
+		if err = rows.Err(); err != nil {
+			return fmt.Errorf("edit result %w", err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (st *Store) GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error) {
 	var order models.Order
 
@@ -97,6 +161,75 @@ func (st *Store) SetOrder(ctx context.Context, storeOrder models.StoreOrder) err
 	}
 
 	return nil
+}
+
+func (st *Store) UpdateOrderInvalid(ctx context.Context, accrualResponse *models.AccrualResponse) error {
+	res := st.conn.
+		WithContext(ctx).
+		Table("balance").
+		Where("order_number = ?", accrualResponse.Number).
+		Updates(map[string]interface{}{
+			"status":       models.OrderInvalid,
+			"processed_at": time.Now(),
+		})
+	if res.Error != nil {
+		return fmt.Errorf("update order invalid: %w", res.Error)
+	}
+
+	return nil
+}
+
+func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *models.AccrualResponse) error {
+	return st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").Error; err != nil {
+			return fmt.Errorf("transaction level: %w", err)
+		}
+
+		if accrualResponse == nil {
+			return fmt.Errorf("accrualResponse is nil")
+		}
+		if accrualResponse.Number == "" {
+			return fmt.Errorf("order number is empty")
+		}
+
+		var order models.Order
+
+		result := tx.WithContext(ctx).
+			Table("orders").
+			Where("order_number = ?", accrualResponse.Number).
+			First(&order)
+
+		if result.Error != nil {
+			return fmt.Errorf("transaction level: %w", result.Error)
+		}
+
+		res := tx.
+			WithContext(ctx).
+			Table("balance").
+			Where("user_id = ?", order.UserID).
+			Updates(map[string]interface{}{
+				"current":    gorm.Expr("current + ?", accrualResponse.Accrual),
+				"updated_at": time.Now(),
+			})
+		if res.Error != nil {
+			return fmt.Errorf("update balance: %w", res.Error)
+		}
+
+		res = st.conn.
+			WithContext(ctx).
+			Table("orders").
+			Where("order_number = ?", accrualResponse.Number).
+			Updates(map[string]interface{}{
+				"status":       models.OrderProcessed,
+				"processed_at": time.Now(),
+				"accrual":      accrualResponse.Accrual,
+			})
+		if res.Error != nil {
+			return fmt.Errorf("update order processed: %w", res.Error)
+		}
+
+		return nil
+	})
 }
 
 func (st *Store) CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error) {
