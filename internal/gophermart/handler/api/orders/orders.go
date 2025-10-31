@@ -6,7 +6,6 @@ import (
 	"errors"
 	utils "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/utils/auth"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/validators"
-	_ "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/validators"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
 	"go.uber.org/zap"
@@ -98,7 +97,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 				return
 
 			case <-ctx.Done():
-				logger.Info("request context cancelled")
+				logger.Info("request context canceled")
 				if _, err = w.Write([]byte("\n]")); err != nil {
 					logger.Error("error writing end of json array", zap.Error(err))
 				}
@@ -126,7 +125,7 @@ func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			status := http.StatusBadRequest
 
 			if numberProblems, ok := problems["number"]; ok {
-				if _, hasNoValidError := numberProblems["no_valid"]; hasNoValidError {
+				if _, hasNoValidError := numberProblems["is_valid"]; hasNoValidError {
 					status = http.StatusUnprocessableEntity
 				}
 			}

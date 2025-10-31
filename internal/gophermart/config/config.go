@@ -12,6 +12,7 @@ type Config struct {
 	Accrual     *accrual.Config
 	LogLevel    string
 	DatabaseDsn string
+	AccrualAddr string
 }
 
 func GetConfig(args []string) (*Config, error) {

@@ -21,7 +21,7 @@ func run(ctx context.Context, args []string) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
-	cfg, err := config.GetConfig(args)
+	cfg, err := config.GetConfig(args[1:])
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
