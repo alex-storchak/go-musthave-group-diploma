@@ -58,7 +58,6 @@ func run(ctx context.Context, args []string) error {
 	}
 
 	auth := service.NewAuth(cfg.Handlers, conn)
-
 	router := handler.NewRouter(zl, cfg.Handlers, gmart, auth)
 
 	processOrder, err := worker.NewProcessOrder(conn, *cfg, zl)
