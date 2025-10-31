@@ -62,6 +62,9 @@ func run(ctx context.Context, args []string) error {
 	router := handler.NewRouter(zl, cfg.Handlers, gmart, auth)
 
 	processOrder, err := worker.NewProcessOrder(conn, *cfg, zl)
+	if err != nil {
+		return fmt.Errorf("new process order: %w", err)
+	}
 	go processOrder.StartProcessOrder(ctx)
 
 	return handler.Serve(ctx, zl, cfg.Handlers, router)

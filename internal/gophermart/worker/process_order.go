@@ -29,6 +29,9 @@ func NewProcessOrder(conn *gorm.DB, cfg config.Config, l *zap.Logger) (*ProcessO
 	}
 
 	acc, err := accrual.New(cfg.Accrual)
+	if err != nil {
+		return nil, fmt.Errorf("new accrual: %w", err)
+	}
 
 	return &ProcessOrder{
 		mu:      &sync.RWMutex{},
@@ -206,7 +209,5 @@ func (f *ProcessOrder) GetOrders(ctx context.Context) {
 		return
 	}
 
-	for _, order := range newOrder {
-		f.orders = append(f.orders, order)
-	}
+	f.orders = append(f.orders, newOrder...)
 }

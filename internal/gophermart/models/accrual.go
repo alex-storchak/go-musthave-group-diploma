@@ -4,9 +4,9 @@ type AccrualStatus string
 
 const (
 	AccrualRegistered AccrualStatus = "REGISTERED"
-	AccrualProcessing               = "PROCESSING"
-	AccrualInvalid                  = "INVALID"
-	AccrualProcessed                = "PROCESSED"
+	AccrualProcessing AccrualStatus = "PROCESSING"
+	AccrualInvalid    AccrualStatus = "INVALID"
+	AccrualProcessed  AccrualStatus = "PROCESSED"
 )
 
 type AccrualResponse struct {
