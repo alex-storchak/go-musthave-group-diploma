@@ -77,6 +77,11 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 
 func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := utils.GetCtxUserID(r.Context())
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		storeOrderWrapper := &validators.StoreOrderWrapper{
 			StoreOrder: &models.StoreOrder{},
@@ -103,7 +108,7 @@ func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			w.Write([]byte(problemsStr))
 			return
 		}
-		storeOrderWrapper.StoreOrder.UserID = 1
+		storeOrderWrapper.StoreOrder.UserID = userID
 		err = gophermart.StoreOrder(r.Context(), *storeOrderWrapper.StoreOrder)
 		isErrConflictNumber := errors.Is(err, myerrors.ErrConflictNumber)
 		if err != nil && !isErrConflictNumber {
