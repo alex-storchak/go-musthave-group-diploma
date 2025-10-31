@@ -1,4 +1,4 @@
-name: gophermart
+name: gophermart-2db
 
 on:
   workflow_dispatch:
@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - master
+      - iter*
 
 jobs:
 
