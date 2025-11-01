@@ -32,8 +32,8 @@ func (f RoundedFloat64) MarshalJSON() ([]byte, error) {
 }
 
 type AccrualResponse struct {
-	Number  string         `json:"order"`
-	Status  AccrualStatus  `json:"status"`
-	Accrual RoundedFloat64 `json:"accrual"`
-	Order   OrderProcess   `json:"-"`
+	Number  string        `json:"order"`
+	Status  AccrualStatus `json:"status"`
+	Accrual float64       `json:"accrual"`
+	Order   OrderProcess  `json:"-"`
 }
