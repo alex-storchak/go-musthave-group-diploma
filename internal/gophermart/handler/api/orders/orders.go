@@ -180,7 +180,7 @@ func determineResponseStatus(
 		}
 
 		if order == nil {
-			return 0, errors.New("order not found")
+			return 0, myerrors.ErrOrderNotFound
 		}
 
 		if order.UserID == storeOrder.UserID {
