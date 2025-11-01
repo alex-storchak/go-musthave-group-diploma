@@ -240,7 +240,6 @@ func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *mode
 				return fmt.Errorf("update balance: %w", res.Error)
 			}
 		}
-
 		res = tx.
 			WithContext(ctx).
 			Table("orders").
