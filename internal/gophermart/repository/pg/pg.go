@@ -185,76 +185,117 @@ func (st *Store) UpdateOrderInvalid(ctx context.Context, accrualResponse *models
 
 func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *models.AccrualResponse) error {
 	return st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").Error; err != nil {
-			return fmt.Errorf("transaction level: %w", err)
+		// 1. Настройка изоляции транзакции
+		if err := setupTransactionIsolation(tx); err != nil {
+			return err
 		}
 
-		if accrualResponse == nil {
-			return fmt.Errorf("accrualResponse is nil")
-		}
-		if accrualResponse.Number == "" {
-			return fmt.Errorf("order number is empty")
+		// 2. Валидация входных данных
+		if err := validateAccrualResponse(accrualResponse); err != nil {
+			return err
 		}
 
-		var order models.Order
-
-		result := tx.WithContext(ctx).
-			Table("orders").
-			Where("order_number = ?", accrualResponse.Number).
-			First(&order)
-		if result.Error != nil {
-			return fmt.Errorf("transaction level: %w", result.Error)
+		// 3. Получение заказа
+		order, err := getOrderByNumber(tx, ctx, accrualResponse.Number)
+		if err != nil {
+			return err
 		}
 
-		var balance models.ShowBalanceResponse
-
-		res := tx.
-			WithContext(ctx).
-			Table("balance").
-			Where("user_id = ?", order.UserID).
-			First(&balance)
-
-		if res.RowsAffected < 1 {
-			res = tx.
-				WithContext(ctx).
-				Table("balance").
-				Create(&models.Balance{
-					UserID:         order.UserID,
-					Current:        accrualResponse.Accrual,
-					TotalWithdrawn: 0,
-				})
-
-			if res.Error != nil {
-				return fmt.Errorf("create default balance: %w", res.Error)
-			}
-		} else {
-			res = tx.
-				WithContext(ctx).
-				Table("balance").
-				Where("user_id = ?", order.UserID).
-				Updates(map[string]interface{}{
-					"current":    gorm.Expr("current + ?", accrualResponse.Accrual),
-					"updated_at": time.Now(),
-				})
-			if res.Error != nil {
-				return fmt.Errorf("update balance: %w", res.Error)
-			}
+		// 4. Обновление баланса пользователя
+		if err := updateUserBalance(tx, ctx, order.UserID, accrualResponse.Accrual); err != nil {
+			return err
 		}
-		res = tx.
-			WithContext(ctx).
-			Table("orders").
-			Where("order_number = ?", accrualResponse.Number).
-			Updates(map[string]interface{}{
-				"status":       models.OrderProcessed,
-				"processed_at": time.Now(),
-				"accrual":      accrualResponse.Accrual,
-			})
-		if res.Error != nil {
-			return fmt.Errorf("update order processed: %w", res.Error)
+
+		// 5. Обновление статуса заказа
+		if err := markOrderAsProcessed(tx, ctx, accrualResponse, order); err != nil {
+			return err
 		}
 
 		return nil
 	})
+}
+
+func setupTransactionIsolation(tx *gorm.DB) error {
+	if err := tx.Exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").Error; err != nil {
+		return fmt.Errorf("transaction level: %w", err)
+	}
+	return nil
+}
+
+func validateAccrualResponse(resp *models.AccrualResponse) error {
+	if resp == nil {
+		return myerrors.ErrAccrualResponseNil
+	}
+	if resp.Number == "" {
+		return myerrors.ErrOrderNumberNil
+	}
+	return nil
+}
+
+func getOrderByNumber(tx *gorm.DB, ctx context.Context, number string) (models.Order, error) {
+	var order models.Order
+	result := tx.WithContext(ctx).
+		Table("orders").
+		Where("order_number = ?", number).
+		First(&order)
+
+	if result.Error != nil {
+		return models.Order{}, fmt.Errorf("get order by number: %w", result.Error)
+	}
+	return order, nil
+}
+
+func updateUserBalance(tx *gorm.DB, ctx context.Context, userID models.UserID, accrual models.RoundedFloat64) error {
+	var balance models.ShowBalanceResponse
+	res := tx.
+		WithContext(ctx).
+		Table("balance").
+		Where("user_id = ?", userID).
+		First(&balance)
+
+	if res.RowsAffected < 1 {
+		// Создаём баланс, если его нет
+		newBalance := models.Balance{
+			UserID:         userID,
+			Current:        accrual,
+			TotalWithdrawn: 0,
+		}
+		res = tx.WithContext(ctx).Table("balance").Create(&newBalance)
+		if res.Error != nil {
+			return fmt.Errorf("create default balance: %w", res.Error)
+		}
+	} else {
+		// Обновляем существующий баланс
+		res = tx.
+			WithContext(ctx).
+			Table("balance").
+			Where("user_id = ?", userID).
+			Updates(map[string]interface{}{
+				"current":    gorm.Expr("current + ?", accrual),
+				"updated_at": time.Now(),
+			})
+		if res.Error != nil {
+			return fmt.Errorf("update balance: %w", res.Error)
+		}
+	}
+	return nil
+}
+
+func markOrderAsProcessed(tx *gorm.DB, ctx context.Context, resp *models.AccrualResponse, order models.Order) error {
+	res := tx.
+		WithContext(ctx).
+		Table("orders").
+		Where("order_number = ?", resp.Number).
+		Updates(map[string]interface{}{
+			"status":       models.OrderProcessed,
+			"processed_at": time.Now(),
+			"accrual":      resp.Accrual,
+		})
+
+	if res.Error != nil {
+		return fmt.Errorf("update order processed: %w", res.Error)
+	}
+	return nil
 }
 
 func (st *Store) CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error) {
@@ -326,67 +367,116 @@ func (st *Store) SetDefaultBalance(ctx context.Context, setDefaultBalance models
 	return nil
 }
 
-func (st *Store) StoreWithdrawal(ctx context.Context, storeWithdrawal models.StoreWithdrawal, setDefaultBalance models.SetDefaultBalanceRequest) error {
+func (st *Store) StoreWithdrawal(
+	ctx context.Context,
+	storeWithdrawal models.StoreWithdrawal,
+	setDefaultBalance models.SetDefaultBalanceRequest,
+) error {
 	return st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").Error; err != nil {
+		// 1. Настройка изоляции транзакции
+		if err := setupTransactionIsolation(tx); err != nil {
 			return err
 		}
 
-		var balance models.ShowBalanceResponse
-
-		b := tx.WithContext(ctx).
-			Table("balance").
-			Where("user_id = ?", storeWithdrawal.UserID).
-			First(&balance)
-
-		if b.Error != nil {
-			if errors.Is(b.Error, gorm.ErrRecordNotFound) {
-				balanceDefault := models.Balance{
-					UserID:         setDefaultBalance.UserID,
-					Current:        setDefaultBalance.Current,
-					TotalWithdrawn: setDefaultBalance.TotalWithdrawn,
-				}
-
-				bd := tx.
-					WithContext(ctx).
-					Table("balance").
-					Create(&balanceDefault)
-
-				if bd.Error != nil {
-					return fmt.Errorf("create default balance: %w", b.Error)
-				}
-
-				balance.Current = setDefaultBalance.Current
-				balance.TotalWithdrawn = setDefaultBalance.TotalWithdrawn
-			}
-			return fmt.Errorf("get balance: %w", b.Error)
+		// 2. Получение текущего баланса пользователя
+		balance, err := getUserBalance(tx, ctx, storeWithdrawal.UserID, setDefaultBalance)
+		if err != nil {
+			return err
 		}
+
+		// 3. Проверка достаточности средств
 		if balance.Current < storeWithdrawal.Sum {
 			return myerrors.ErrBalance
 		}
 
-		res := tx.
-			WithContext(ctx).
-			Table("balance").
-			Where("user_id = ?", storeWithdrawal.UserID).
-			Updates(map[string]interface{}{
-				"current":         gorm.Expr("current - ?", storeWithdrawal.Sum),
-				"total_withdrawn": gorm.Expr("total_withdrawn + ?", storeWithdrawal.Sum),
-			})
-		if res.Error != nil {
-			return fmt.Errorf("update balance: %w", res.Error)
+		// 4. Обновление баланса (списание)
+		if err := deductWithdrawalAmount(tx, ctx, storeWithdrawal); err != nil {
+			return err
 		}
 
-		res = tx.
-			WithContext(ctx).
-			Table("withdrawals").
-			Create(&storeWithdrawal)
-		if res.Error != nil {
-			return fmt.Errorf("create withdrawal: %w", res.Error)
+		// 5. Создание записи о выводе
+		if err := createWithdrawalRecord(tx, ctx, storeWithdrawal); err != nil {
+			return err
 		}
 
 		return nil
 	})
+}
+
+func getUserBalance(tx *gorm.DB, ctx context.Context, userID models.UserID, setDefaultBalance models.SetDefaultBalanceRequest) (models.ShowBalanceResponse, error) {
+	var balance models.ShowBalanceResponse
+	result := tx.
+		WithContext(ctx).
+		Table("balance").
+		Where("user_id = ?", userID).
+		First(&balance)
+
+	if result.Error == nil {
+		return balance, nil
+	}
+
+	// Если баланс не найден — создаём дефолтный
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		defaultBalance := models.Balance{
+			UserID:         userID,
+			Current:        setDefaultBalance.Current,
+			TotalWithdrawn: setDefaultBalance.TotalWithdrawn,
+		}
+
+		createResult := tx.
+			WithContext(ctx).
+			Table("balance").
+			Create(&defaultBalance)
+
+		if createResult.Error != nil {
+			return models.ShowBalanceResponse{}, fmt.Errorf(
+				"create default balance: %w",
+				createResult.Error,
+			)
+		}
+
+		balance.Current = setDefaultBalance.Current
+		balance.TotalWithdrawn = setDefaultBalance.TotalWithdrawn
+		return balance, nil
+	}
+
+	return models.ShowBalanceResponse{}, fmt.Errorf("get balance: %w", result.Error)
+}
+
+func deductWithdrawalAmount(
+	tx *gorm.DB,
+	ctx context.Context,
+	withdrawal models.StoreWithdrawal,
+) error {
+	result := tx.
+		WithContext(ctx).
+		Table("balance").
+		Where("user_id = ?", withdrawal.UserID).
+		Updates(map[string]interface{}{
+			"current":         gorm.Expr("current - ?", withdrawal.Sum),
+			"total_withdrawn": gorm.Expr("total_withdrawn + ?", withdrawal.Sum),
+		})
+
+	if result.Error != nil {
+		return fmt.Errorf("update balance: %w", result.Error)
+	}
+	return nil
+}
+
+func createWithdrawalRecord(
+	tx *gorm.DB,
+	ctx context.Context,
+	withdrawal models.StoreWithdrawal,
+) error {
+	result := tx.
+		WithContext(ctx).
+		Table("withdrawals").
+		Create(&withdrawal)
+
+	if result.Error != nil {
+		return fmt.Errorf("create withdrawal: %w", result.Error)
+	}
+	return nil
 }
 
 func (st *Store) CountWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) (int64, error) {

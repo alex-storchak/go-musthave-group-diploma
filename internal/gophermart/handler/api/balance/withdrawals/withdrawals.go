@@ -75,23 +75,32 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	}
 }
 
+func getStoreWrapper(w http.ResponseWriter, r *http.Request, logger *zap.Logger) (*validators.StoreWithdrawalWrapper, error) {
+	storeWithdrawalWrapper := &validators.StoreWithdrawalWrapper{
+		StoreWithdrawalRequest: &models.StoreWithdrawalRequest{},
+	}
+
+	problems, err := validators.Decode(r, storeWithdrawalWrapper)
+	if err != nil {
+		logger.Debug("bad request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, fmt.Errorf("bad request %w", err)
+	}
+
+	if len(problems) > 0 {
+		logger.Debug("bad request", zap.String("problems", fmt.Sprintf("%v", problems)))
+		myerrors.ErrorValidateJSONResponse(w, problems, http.StatusBadRequest)
+		return nil, fmt.Errorf("bad request %w: problems: %v", myerrors.ErrValidation, problems)
+	}
+
+	return storeWithdrawalWrapper, nil
+}
+
 func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		storeWithdrawalWrapper := &validators.StoreWithdrawalWrapper{
-			StoreWithdrawalRequest: &models.StoreWithdrawalRequest{},
-		}
-
-		problems, err := validators.Decode(r, storeWithdrawalWrapper)
+		storeWithdrawalWrapper, err := getStoreWrapper(w, r, logger)
 		if err != nil {
-			logger.Debug("bad request", zap.Error(err))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		if len(problems) > 0 {
-			logger.Debug("bad request", zap.String("problems", fmt.Sprintf("%v", problems)))
-			myerrors.ErrorValidateJSONResponse(w, problems, http.StatusBadRequest)
 			return
 		}
 
