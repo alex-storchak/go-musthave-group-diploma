@@ -64,6 +64,6 @@ func (f *Gophermart) CountWithdrawal(ctx context.Context, indexWithdrawal models
 	return f.store.CountWithdrawal(ctx, indexWithdrawal)
 }
 
-func (f *Gophermart) IndexWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) (<-chan models.IndexWithdrawalResponse, <-chan error) {
+func (f *Gophermart) IndexWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) ([]models.IndexWithdrawalResponse, error) {
 	return f.store.IndexWithdrawal(ctx, indexWithdrawal)
 }

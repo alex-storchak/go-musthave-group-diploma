@@ -32,12 +32,15 @@ func IsValidLuhn(number string) bool {
 
 	// Проходим по номеру справа налево
 	for i := len(number) - 1; i >= 0; i-- {
-		digit, _ := strconv.Atoi(string(number[i]))
+		digit, err := strconv.Atoi(string(number[i]))
+		if err != nil {
+			return false
+		}
 
 		if isEven {
 			digit *= 2
 			if digit > 9 {
-				digit = digit - 9
+				digit -= 9
 			}
 		}
 

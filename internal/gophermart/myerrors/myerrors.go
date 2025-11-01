@@ -8,10 +8,16 @@ import (
 )
 
 var (
-	ErrOrderNotFound   = errors.New("not found order")
-	ErrBalanceNotFound = errors.New("not found balance")
-	ErrConflictNumber  = errors.New("number conflict")
-	ErrBalance         = errors.New("insufficient funds")
+	ErrOrderNotFound      = errors.New("not found order")
+	ErrBalanceNotFound    = errors.New("not found balance")
+	ErrConflictNumber     = errors.New("number conflict")
+	ErrBalance            = errors.New("insufficient funds")
+	ErrAccrualRetryAfter  = errors.New("retry after")
+	ErrAccrualNoOrder     = errors.New("no order")
+	ErrAccrual            = errors.New("error accrual")
+	ErrAccrualResponseNil = errors.New("accrual response is nil")
+	ErrOrderNumberNil     = errors.New("order number is empty")
+	ErrValidation         = errors.New("validation error")
 )
 
 func ErrorValidateJSONResponse(w http.ResponseWriter, messages map[string]map[string]string, code int) {
@@ -21,5 +27,8 @@ func ErrorValidateJSONResponse(w http.ResponseWriter, messages map[string]map[st
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(errResp)
+	err := json.NewEncoder(w).Encode(errResp)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }

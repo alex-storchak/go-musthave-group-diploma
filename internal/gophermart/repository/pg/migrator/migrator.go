@@ -16,9 +16,11 @@ func ApplyMigrations(db *gorm.DB, dirName string) error {
 		return fmt.Errorf("failed to get underlying sql.DB: %w", err)
 	}
 
-	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
+	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{
+		MigrationsTable: "gm_schema_migrations",
+	})
 	if err != nil {
-		return fmt.Errorf("unable to create db instance: %v", err)
+		return fmt.Errorf("unable to create db instance: %w", err)
 	}
 
 	migrator, err := migrate.NewWithDatabaseInstance(dirName, "pgx", driver)

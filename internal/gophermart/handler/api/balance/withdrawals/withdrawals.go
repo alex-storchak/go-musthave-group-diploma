@@ -16,7 +16,7 @@ import (
 
 type Gophermart interface {
 	StoreWithdrawal(ctx context.Context, storeWithdrawal models.StoreWithdrawal, setDefaultBalance models.SetDefaultBalanceRequest) error
-	IndexWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) (<-chan models.IndexWithdrawalResponse, <-chan error)
+	IndexWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) ([]models.IndexWithdrawalResponse, error)
 	CountWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) (int64, error)
 }
 
@@ -24,6 +24,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
+		// Получаем ID пользователя из контекста
 		userID, err := utils.GetCtxUserID(r.Context())
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -32,9 +33,11 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 
 		indexWithdrawal := models.IndexWithdrawal{UserID: userID}
 
+		// Устанавливаем таймаут контекста
 		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 		defer cancel()
 
+		// Проверяем количество записей
 		count, err := gophermart.CountWithdrawal(ctx, indexWithdrawal)
 		if err != nil {
 			logger.Error("count withdrawal", zap.Error(err))
@@ -47,84 +50,57 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			return
 		}
 
-		withdrawalChan, errChan := gophermart.IndexWithdrawal(ctx, indexWithdrawal)
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			logger.Error("streaming not supported")
+		// Получаем все выводы сразу (синхронно)
+		withdrawals, err := gophermart.IndexWithdrawal(ctx, indexWithdrawal)
+		if err != nil {
+			logger.Error("index withdrawal", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		_, err = w.Write([]byte("[\n"))
+		// Формируем JSON‑ответ
+		response, err := json.Marshal(withdrawals)
 		if err != nil {
-			logger.Error("writing start of json array", zap.Error(err))
+			logger.Error("marshal withdrawals to json", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		encoder := json.NewEncoder(w)
-		isFirst := true
-
-		for {
-			select {
-			case withdrawal, ok := <-withdrawalChan:
-				if !ok {
-					if _, err = w.Write([]byte("\n]")); err != nil {
-						logger.Error("writing end of json array", zap.Error(err))
-					}
-					return
-				}
-
-				if !isFirst {
-					if _, err = w.Write([]byte(",\n")); err != nil {
-						logger.Error("error writing comma", zap.Error(err))
-						return
-					}
-				}
-				isFirst = false
-
-				if err = encoder.Encode(withdrawal); err != nil {
-					logger.Error("error encoding order", zap.Error(err))
-					return
-				}
-
-				flusher.Flush()
-
-			case err = <-errChan:
-				logger.Error("stream error", zap.Error(err))
-				if _, err = w.Write([]byte("\n]")); err != nil {
-					logger.Error("error writing end of json array", zap.Error(err))
-				}
-				return
-
-			case <-ctx.Done():
-				logger.Info("request context cancelled")
-				if _, err = w.Write([]byte("\n]")); err != nil {
-					logger.Error("error writing end of json array", zap.Error(err))
-				}
-				return
-			}
+		// Отправляем ответ
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(response)
+		if err != nil {
+			logger.Error("write response", zap.Error(err))
 		}
 	}
+}
+
+func getStoreWrapper(w http.ResponseWriter, r *http.Request, logger *zap.Logger) (*validators.StoreWithdrawalWrapper, error) {
+	storeWithdrawalWrapper := &validators.StoreWithdrawalWrapper{
+		StoreWithdrawalRequest: &models.StoreWithdrawalRequest{},
+	}
+
+	problems, err := validators.Decode(r, storeWithdrawalWrapper)
+	if err != nil {
+		logger.Debug("bad request", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, fmt.Errorf("bad request %w", err)
+	}
+
+	if len(problems) > 0 {
+		logger.Debug("bad request", zap.String("problems", fmt.Sprintf("%v", problems)))
+		myerrors.ErrorValidateJSONResponse(w, problems, http.StatusBadRequest)
+		return nil, fmt.Errorf("bad request %w: problems: %v", myerrors.ErrValidation, problems)
+	}
+
+	return storeWithdrawalWrapper, nil
 }
 
 func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		storeWithdrawalWrapper := &validators.StoreWithdrawalWrapper{
-			StoreWithdrawalRequest: &models.StoreWithdrawalRequest{},
-		}
-
-		problems, err := validators.Decode(r, storeWithdrawalWrapper)
+		storeWithdrawalWrapper, err := getStoreWrapper(w, r, logger)
 		if err != nil {
-			logger.Debug("bad request", zap.Error(err))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		if len(problems) > 0 {
-			logger.Debug("bad request", zap.String("problems", fmt.Sprintf("%v", problems)))
-			myerrors.ErrorValidateJSONResponse(w, problems, http.StatusBadRequest)
 			return
 		}
 

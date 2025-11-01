@@ -26,7 +26,7 @@ func InitGORMDB(c *config.Config) (*gorm.DB, error) {
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		Conn: sqlDB,
 	}), &gorm.Config{
-		Logger:                 logger.Default.LogMode(logger.Info),
+		Logger:                 logger.Default.LogMode(logger.Silent),
 		SkipDefaultTransaction: true,
 		TranslateError:         true,
 	})

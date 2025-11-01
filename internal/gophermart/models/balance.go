@@ -7,19 +7,19 @@ type GetBalanceRequest struct {
 }
 
 type ShowBalanceResponse struct {
-	Current        float64 `json:"current"`
-	TotalWithdrawn float64 `json:"withdrawn"`
+	Current        RoundedFloat64 `json:"current"`
+	TotalWithdrawn RoundedFloat64 `json:"withdrawn"`
 }
 
 type SetDefaultBalanceRequest struct {
-	UserID         UserID  `json:"user_id"`
-	Current        float64 `json:"current"`
-	TotalWithdrawn float64 `json:"withdrawn"`
+	UserID         UserID         `json:"user_id"`
+	Current        RoundedFloat64 `json:"current"`
+	TotalWithdrawn RoundedFloat64 `json:"withdrawn"`
 }
 
 type Balance struct {
-	UserID         UserID     `json:"user_id" gorm:"primaryKey"`
-	Current        float64    `json:"current"`
-	TotalWithdrawn float64    `json:"withdrawn"`
-	UpdatedAt      *time.Time `json:"uploaded_at" gorm:"default:current_timestamp"`
+	UserID         UserID         `json:"user_id" gorm:"primaryKey"`
+	Current        RoundedFloat64 `json:"current"`
+	TotalWithdrawn RoundedFloat64 `json:"withdrawn"`
+	UpdatedAt      *time.Time     `json:"uploaded_at" gorm:"default:current_timestamp"`
 }

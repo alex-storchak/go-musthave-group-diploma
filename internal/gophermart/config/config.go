@@ -2,65 +2,64 @@ package config
 
 import (
 	"flag"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	handlers "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
+	accrual "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual/config"
 	"os"
 )
 
-const (
-	DefaultAccrualAddr = "localhost:8081"
-	DefaultDatabaseDsn = "host=127.127.126.41 port=5432 dbname=shorturl user=shorturl password=shorturl connect_timeout=10 sslmode=prefer"
-	DefaultLogLevel    = "info"
-)
-
 type Config struct {
-	Handlers    *config.Config
+	Handlers    *handlers.Config
+	Accrual     *accrual.Config
 	LogLevel    string
 	DatabaseDsn string
-	AccrualAddr string
 }
 
 func GetConfig(args []string) (*Config, error) {
 	cfg := Config{
-		Handlers: &config.Config{
-			ServerAddr:    config.DefaultServerAddr,
-			CompressLevel: config.DefaultCompressLevel,
-			AuthConfig: config.AuthConfig{
-				AuthCookieName:     config.DefaultAuthCookieName,
-				AuthSecretKey:      config.DefaultAuthSecretKey,
-				AuthExpireDuration: config.DefaultAuthExpireDuration,
+		Handlers: &handlers.Config{
+			ServerAddr:    handlers.DefaultServerAddr,
+			CompressLevel: handlers.DefaultCompressLevel,
+			AuthConfig: handlers.AuthConfig{
+				AuthCookieName:     handlers.DefaultAuthCookieName,
+				AuthSecretKey:      handlers.DefaultAuthSecretKey,
+				AuthExpireDuration: handlers.DefaultAuthExpireDuration,
 			},
 		},
-		AccrualAddr: DefaultAccrualAddr,
-		DatabaseDsn: DefaultDatabaseDsn,
-		LogLevel:    DefaultLogLevel,
+		Accrual: &accrual.Config{
+			Addr:              accrual.DefaultAddr,
+			RequestTimeout:    accrual.DefaultRequestTimeout,
+			RetryAfterDefault: accrual.DefaultRetryAfter,
+		},
+		DatabaseDsn: "host=127.127.126.41 port=5432 dbname=shorturl user=shorturl password=shorturl connect_timeout=10 sslmode=prefer",
+		LogLevel:    "info",
 	}
 
-	if serverAddr, ok := os.LookupEnv("RUN_ADDRESS"); ok && serverAddr != "" {
+	if serverAddr := os.Getenv("RUN_ADDRESS"); serverAddr != "" {
 		cfg.Handlers.ServerAddr = serverAddr
 	}
 
-	if envLogLevel, ok := os.LookupEnv("LOG_LEVEL"); ok && envLogLevel != "" {
+	if envLogLevel := os.Getenv("LOG_LEVEL"); envLogLevel != "" {
 		cfg.LogLevel = envLogLevel
 	}
 
-	if databaseDsn, ok := os.LookupEnv("DATABASE_URI"); ok && databaseDsn != "" {
+	if databaseDsn := os.Getenv("DATABASE_URI"); databaseDsn != "" {
 		cfg.DatabaseDsn = databaseDsn
 	}
 
-	if accrualAddr, ok := os.LookupEnv("ACCRUAL_SYSTEM_ADDRESS"); ok && accrualAddr != "" {
-		cfg.AccrualAddr = accrualAddr
+	if secretKey := os.Getenv("AUTH_SECRET_KEY"); secretKey != "" {
+		cfg.Handlers.AuthSecretKey = secretKey
 	}
 
-	if secretKey, ok := os.LookupEnv("AUTH_SECRET_KEY"); ok && secretKey != "" {
-		cfg.Handlers.AuthSecretKey = secretKey
+	if accrualAddr := os.Getenv("ACCRUAL_SYSTEM_ADDRESS"); accrualAddr != "" {
+		cfg.Accrual.Addr = accrualAddr
 	}
 
 	fs := flag.NewFlagSet("myFlagSet", flag.ContinueOnError)
 	fs.StringVar(&cfg.Handlers.ServerAddr, "a", cfg.Handlers.ServerAddr, "address of HTTP server")
 	fs.StringVar(&cfg.LogLevel, "l", cfg.LogLevel, "log level")
-	fs.StringVar(&cfg.DatabaseDsn, "d", cfg.DatabaseDsn, "database connection string")
-	fs.StringVar(&cfg.AccrualAddr, "r", cfg.AccrualAddr, "address of the accrual system")
-	fs.StringVar(&cfg.Handlers.AuthSecretKey, "s", cfg.Handlers.AuthSecretKey, "auth secret key")
+	fs.StringVar(&cfg.DatabaseDsn, "d", cfg.DatabaseDsn, "connection string")
+	fs.StringVar(&cfg.Handlers.AuthSecretKey, "s", cfg.Handlers.AuthSecretKey, "secret key")
+	fs.StringVar(&cfg.Accrual.Addr, "r", cfg.Accrual.Addr, "address accrual")
 	err := fs.Parse(args)
 	if err != nil {
 		return &Config{}, err

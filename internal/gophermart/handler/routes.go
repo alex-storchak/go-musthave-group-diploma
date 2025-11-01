@@ -19,14 +19,14 @@ func addRoutes(
 	mux *chi.Mux,
 	logger *zap.Logger,
 	cfg *config.Config,
-	gophermart *gophermart.Gophermart,
+	g *gophermart.Gophermart,
 	auth *service.Auth,
 ) {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Compress(cfg.CompressLevel))
 
 	mux.Route("/api", func(mux chi.Router) {
-		mux.Get("/ping", ping.Ping(logger, gophermart))
+		mux.Get("/ping", ping.Ping(logger, g))
 
 		mux.Route("/user", func(mux chi.Router) {
 			mux.Post("/register", handlerauth.HandleRegister(cfg, logger, auth))
@@ -37,16 +37,16 @@ func addRoutes(
 				mux.Use(mw.NewAuth(cfg, logger, auth))
 
 				mux.Route("/orders", func(mux chi.Router) {
-					mux.Get("/", orders.Index(logger, gophermart))
-					mux.Post("/", orders.Store(logger, gophermart))
+					mux.Get("/", orders.Index(logger, g))
+					mux.Post("/", orders.Store(logger, g))
 				})
 
 				mux.Route("/balance", func(mux chi.Router) {
-					mux.Get("/", balance.Show(logger, gophermart))
-					mux.Post("/withdraw", withdrawals.Store(logger, gophermart))
+					mux.Get("/", balance.Show(logger, g))
+					mux.Post("/withdraw", withdrawals.Store(logger, g))
 				})
 
-				mux.Get("/withdrawals", withdrawals.Index(logger, gophermart))
+				mux.Get("/withdrawals", withdrawals.Index(logger, g))
 			})
 		})
 	})
