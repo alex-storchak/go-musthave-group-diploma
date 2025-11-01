@@ -15,30 +15,56 @@ type StoreOrderWrapper struct {
 func (o *StoreOrderWrapper) Valid(r *http.Request) (map[string]map[string]string, error) {
 	problems := make(map[string]map[string]string)
 
-	body, err := io.ReadAll(io.LimitReader(r.Body, 1024))
+	// 1. Чтение тела запроса
+	body, err := readRequestBody(r)
 	if err != nil {
-		return problems, fmt.Errorf("reading request body: %w", err)
+		return nil, fmt.Errorf("reading request body: %w", err)
 	}
-	defer r.Body.Close()
 
+	// 2. Очистка и проверка номера
 	number := utils.RemoveWhitespaces(string(body))
+	numberProblems := validateNumberOrder(number)
 
-	numberProblem := make(map[string]string)
-	if number == "" {
-		numberProblem["required"] = "number is required"
-	} else if !utils.IsNumericRegex(number) {
-		numberProblem["is_numeric"] = "number must contain only digits"
-	} else if !utils.IsValidLuhn(number) {
-		numberProblem["is_valid"] = "the number is not valid according to the Luhn algorithm"
+	// 3. Добавление проблем, если есть
+	if len(numberProblems) > 0 {
+		problems["number"] = numberProblems
 	}
 
-	if len(numberProblem) > 0 {
-		problems["number"] = numberProblem
-	}
-
-	if len(problems["number"]) == 0 {
+	// 4. Установка значения, если валидно
+	if len(problems) == 0 {
 		o.StoreOrder.Number = number
 	}
 
 	return problems, nil
+}
+
+func readRequestBody(r *http.Request) ([]byte, error) {
+	defer func() {
+		_ = r.Body.Close() // Гарантированное закрытие, игнорируем ошибку
+	}()
+
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1024))
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func validateNumberOrder(number string) map[string]string {
+	problems := make(map[string]string)
+
+	if number == "" {
+		problems["required"] = "number is required"
+		return problems
+	}
+
+	if !utils.IsNumericRegex(number) {
+		problems["is_numeric"] = "number must contain only digits"
+	}
+
+	if !utils.IsValidLuhn(number) {
+		problems["is_valid"] = "the number is not valid according to the Luhn algorithm"
+	}
+
+	return problems
 }

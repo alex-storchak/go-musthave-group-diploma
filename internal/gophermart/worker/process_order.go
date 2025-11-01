@@ -24,7 +24,7 @@ type ProcessOrder struct {
 	orders  []models.OrderProcess
 }
 
-func NewProcessOrder(conn *gorm.DB, cfg config.Config, l *zap.Logger) (*ProcessOrder, error) {
+func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger) (*ProcessOrder, error) {
 	store, err := NewRepository(conn)
 	if err != nil {
 		return nil, fmt.Errorf("no init repository: %w", err)

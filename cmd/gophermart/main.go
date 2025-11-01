@@ -60,7 +60,7 @@ func run(ctx context.Context, args []string) error {
 	auth := service.NewAuth(cfg.Handlers, conn)
 	router := handler.NewRouter(zl, cfg.Handlers, gmart, auth)
 
-	processOrder, err := worker.NewProcessOrder(conn, *cfg, zl)
+	processOrder, err := worker.NewProcessOrder(conn, cfg, zl)
 	if err != nil {
 		return fmt.Errorf("new process order: %w", err)
 	}

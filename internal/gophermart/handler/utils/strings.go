@@ -40,7 +40,7 @@ func IsValidLuhn(number string) bool {
 		if isEven {
 			digit *= 2
 			if digit > 9 {
-				digit = digit - 9
+				digit -= 9
 			}
 		}
 
