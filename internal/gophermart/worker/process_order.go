@@ -14,8 +14,11 @@ import (
 	"time"
 )
 
+const maxConcurrent = 10
+
 type ProcessOrder struct {
 	mu      *sync.RWMutex
+	counter uint8
 	store   repository.Repository
 	accrual *accrual.Accrual
 	logger  *zap.Logger
@@ -46,87 +49,86 @@ func NewRepository(conn *gorm.DB) (repository.Repository, error) {
 	return pg.NewStore(conn)
 }
 
-func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
-	f.GetOrders(ctx)
-	go f.RunGetOrders(ctx)
+func (f *ProcessOrder) FindUnprocessedOrder() (*models.OrderProcess, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 
-	const maxConcurrent = 10
+	if len(f.orders) > 0 {
+		res := f.orders[0]
+		f.orders = f.orders[1:]
+		return &res, true
+	}
+
+	return nil, false
+}
+
+func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
+	ticker := time.NewTicker(500 * time.Millisecond) // проверять каждые 500 мс
+	defer ticker.Stop()
+
+	var order *models.OrderProcess
+	var found bool
+
 	done := make(chan struct{}, maxConcurrent)
 	errCh := make(chan error, maxConcurrent)
 
+	go f.RunGetOrders(ctx)
+
 	var pauseTimer *time.Timer
-
-	findUnprocessedOrder := func() (*models.OrderProcess, bool) {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-
-		if len(f.orders) > 0 {
-			res := f.orders[0]
-			f.orders = f.orders[1:]
-			return &res, true
-		}
-
-		return nil, false
-	}
 
 	// Запускаем начальные 10 воркеров
 	for i := 0; i < maxConcurrent; i++ {
-		order, ok := findUnprocessedOrder()
-		if !ok {
-			break // нет заказов — выходим
-		}
 		done <- struct{}{}
-		go f.startAccrualWorker(ctx, order, done, errCh)
 	}
 
-	// Основной цикл: реагирует на завершение воркеров и ошибки
-	for {
-		select {
-		case <-ctx.Done():
-			f.logger.Info("StartProcessOrder: context canceled")
-			return
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				f.logger.Info("StartProcessOrder: context canceled")
+				return
 
-		case err := <-errCh:
-			f.logger.Error("error accrual processing", zap.Error(err))
-			if f.accrual.RetryAfter > 0 {
-				// Останавливаем текущий таймер, если есть
-				if pauseTimer != nil {
-					pauseTimer.Stop()
-				}
-				// Запускаем новый таймер
-				pauseTimer = time.AfterFunc(f.accrual.RetryAfter, func() {
-					f.accrual.RetryAfter = 0
-					f.logger.Info("pause processing accrual ended")
-				})
-			}
-
-		case <-done:
-			// Ищем новый заказ с периодической проверкой
-			var order *models.OrderProcess
-			var found bool
-			ticker := time.NewTicker(500 * time.Millisecond) // проверять каждые 500 мс
-			defer ticker.Stop()
-
-			for {
-				select {
-				case <-ctx.Done():
-					f.logger.Info("stop search order")
-					return
-				case <-ticker.C:
-					order, found = findUnprocessedOrder()
-					if found {
-						break // нашли заказ — выходим из цикла ожидания
+			case err := <-errCh:
+				f.logger.Error("error accrual processing", zap.Error(err))
+				if f.accrual.RetryAfter > 0 {
+					// Останавливаем текущий таймер, если есть
+					if pauseTimer != nil {
+						pauseTimer.Stop()
 					}
-					// продолжаем ждать
-					f.logger.Info("waiting for new orders...")
+					// Запускаем новый таймер
+					pauseTimer = time.AfterFunc(f.accrual.RetryAfter, func() {
+						f.accrual.RetryAfter = 0
+						f.logger.Info("pause processing accrual ended")
+					})
 				}
-				if found {
-					break
-				}
-			}
 
-			go f.startAccrualWorker(ctx, order, done, errCh)
+			case <-done:
+				for {
+					select {
+					case <-ctx.Done():
+						f.logger.Info("stop search order")
+						return
+					case <-ticker.C:
+						order, found = f.FindUnprocessedOrder()
+						if found {
+							break // нашли заказ — выходим из цикла ожидания
+						}
+						// продолжаем ждать
+						f.logger.Info("waiting for new orders...")
+					}
+					if found {
+						break
+					}
+				}
+
+				go f.startAccrualWorker(ctx, order, done, errCh)
+			}
 		}
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+	for i := 0; i < maxConcurrent; i++ {
+		done <- struct{}{}
 	}
 }
 
@@ -182,7 +184,7 @@ func (f *ProcessOrder) startAccrualWorker(
 }
 
 func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	f.logger.Info("start process order")
