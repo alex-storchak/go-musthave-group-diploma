@@ -311,22 +311,65 @@ func (st *Store) CountOrder(ctx context.Context, indexOrder models.IndexOrder) (
 	return count, nil
 }
 
-func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) ([]models.IndexOrderResponse, error) {
-	var orders []models.IndexOrderResponse
+func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error) {
+	ordersChan := make(chan models.IndexOrderResponse)
+	errorChan := make(chan error, 1)
+	chunkSize := 1000
+	var lastUploadedAt *time.Time
 
-	err := st.conn.
-		WithContext(ctx).
-		Table("orders").
-		Where("user_id = ?", indexOrder.UserID).
-		Order("uploaded_at asc").
-		Find(&orders).
-		Error
+	go func() {
+		defer close(ordersChan)
+		defer close(errorChan)
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to query orders: %w", err)
-	}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				var orders []models.IndexOrderResponse
+				var query *gorm.DB
 
-	return orders, nil
+				if lastUploadedAt == nil {
+					query = st.conn.
+						WithContext(ctx).
+						Table("orders").
+						Where("user_id = ?", indexOrder.UserID).
+						Order("uploaded_at asc")
+				} else {
+					query = st.conn.
+						WithContext(ctx).
+						Table("orders").
+						Where("user_id = ?", indexOrder.UserID).
+						Where("uploaded_at > ?", *lastUploadedAt).
+						Order("uploaded_at asc")
+				}
+
+				result := query.
+					Limit(chunkSize).
+					Find(&orders)
+
+				if result.Error != nil {
+					errorChan <- result.Error
+					return
+				}
+
+				if len(orders) == 0 {
+					return
+				}
+
+				for _, order := range orders {
+					select {
+					case <-ctx.Done():
+						return
+					case ordersChan <- order:
+						lastUploadedAt = order.UploadedAt
+					}
+				}
+			}
+		}
+	}()
+
+	return ordersChan, errorChan
 }
 
 func (st *Store) GetBalance(ctx context.Context, getBalance models.GetBalanceRequest) (*models.ShowBalanceResponse, error) {

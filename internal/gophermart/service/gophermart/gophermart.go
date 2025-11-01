@@ -36,7 +36,7 @@ func (f *Gophermart) CountOrder(ctx context.Context, indexOrder models.IndexOrde
 	return f.store.CountOrder(ctx, indexOrder)
 }
 
-func (f *Gophermart) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) ([]models.IndexOrderResponse, error) {
+func (f *Gophermart) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error) {
 	return f.store.IndexOrder(ctx, indexOrder)
 }
 
