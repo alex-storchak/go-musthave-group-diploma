@@ -69,7 +69,11 @@ func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess)
 		numbers = append(numbers, order.Number)
 	}
 
-	ns := "'" + strings.Join(numbers, "','") + "'"
+	str := ""
+	if len(numbers) != 0 {
+		ns := "'" + strings.Join(numbers, "','") + "'"
+		str = fmt.Sprintf("AND order_number NOT IN (%s)", ns)
+	}
 
 	var result []models.OrderProcess
 
@@ -79,7 +83,7 @@ func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess)
 				SELECT order_number
 				FROM orders
 				WHERE status IN ('NEW', 'PROCESSING')
-				AND order_number NOT IN (%s)
+				%s
 				ORDER BY uploaded_at ASC
 				LIMIT 100
 				FOR UPDATE
@@ -96,7 +100,7 @@ func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess)
 				RETURNING order_number, processed_at
 			)
 			SELECT order_number FROM updated_orders ORDER BY processed_at ASC;
-		`, ns)).Rows()
+		`, str)).Rows()
 
 		if err != nil {
 			return fmt.Errorf("run sql: %w", err)

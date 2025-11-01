@@ -18,7 +18,6 @@ const maxConcurrent = 10
 
 type ProcessOrder struct {
 	mu      *sync.RWMutex
-	counter uint8
 	store   repository.Repository
 	accrual *accrual.Accrual
 	logger  *zap.Logger
@@ -63,9 +62,6 @@ func (f *ProcessOrder) FindUnprocessedOrder() (*models.OrderProcess, bool) {
 }
 
 func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
-	ticker := time.NewTicker(500 * time.Millisecond) // проверять каждые 500 мс
-	defer ticker.Stop()
-
 	var order *models.OrderProcess
 	var found bool
 
@@ -75,11 +71,6 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 	go f.RunGetOrders(ctx)
 
 	var pauseTimer *time.Timer
-
-	// Запускаем начальные 10 воркеров
-	for i := 0; i < maxConcurrent; i++ {
-		done <- struct{}{}
-	}
 
 	go func() {
 		for {
@@ -103,6 +94,9 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 				}
 
 			case <-done:
+				ticker := time.NewTicker(100 * time.Millisecond) // проверять каждые 500 мс
+				defer ticker.Stop()
+
 				for {
 					select {
 					case <-ctx.Done():
@@ -184,7 +178,7 @@ func (f *ProcessOrder) startAccrualWorker(
 }
 
 func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
 	f.logger.Info("start process order")
@@ -201,6 +195,7 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 }
 
 func (f *ProcessOrder) GetOrders(ctx context.Context) {
+	fmt.Println(f.orders)
 	if len(f.orders) > 50 {
 		return
 	}
