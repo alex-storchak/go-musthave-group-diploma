@@ -328,23 +328,8 @@ func (st *Store) SetDefaultBalance(ctx context.Context, setDefaultBalance models
 
 func (st *Store) StoreWithdrawal(ctx context.Context, storeWithdrawal models.StoreWithdrawal, setDefaultBalance models.SetDefaultBalanceRequest) error {
 	return st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Устанавливаем уровень изоляции
 		if err := tx.Exec("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").Error; err != nil {
 			return err
-		}
-
-		var order models.Order
-
-		o := tx.WithContext(ctx).
-			Where("order_number = ?", storeWithdrawal.Number).
-			Where("user_id = ?", storeWithdrawal.UserID).
-			First(&order)
-
-		if o.Error != nil {
-			if errors.Is(o.Error, gorm.ErrRecordNotFound) {
-				return newErrOrderNotFound(storeWithdrawal.Number)
-			}
-			return fmt.Errorf("failed to get order: %w", o.Error)
 		}
 
 		var balance models.ShowBalanceResponse
@@ -376,7 +361,6 @@ func (st *Store) StoreWithdrawal(ctx context.Context, storeWithdrawal models.Sto
 			}
 			return fmt.Errorf("get balance: %w", b.Error)
 		}
-
 		if balance.Current < storeWithdrawal.Sum {
 			return myerrors.ErrBalance
 		}

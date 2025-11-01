@@ -25,10 +25,10 @@ type OrderProcess struct {
 }
 
 type IndexOrderResponse struct {
-	Number     string     `json:"number" gorm:"column:order_number;primaryKey"`
-	Status     string     `json:"status"`
-	Accrual    float64    `json:"accrual,omitempty"`
-	UploadedAt *time.Time `json:"uploaded_at"`
+	Number     string         `json:"number" gorm:"column:order_number;primaryKey"`
+	Status     string         `json:"status"`
+	Accrual    RoundedFloat64 `json:"accrual,omitempty"`
+	UploadedAt *time.Time     `json:"uploaded_at"`
 }
 
 type IndexOrder struct {

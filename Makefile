@@ -11,10 +11,10 @@ ACCRUAL_DB_DSN ?= "postgres://accrual:StrongPassword02-accrual@localhost:54322/a
 GOLANGCI_LINT = golangci-lint
 
 build-gophermart:
-	cd cmd/gophermart && go build -buildvcs=$(BUILD_VCS) -o gophermart
+	cd cmd/gophermart && go build -buildvcs=$(BUILD_VCS) -o gophermart.exe
 
 build-accrual:
-	cd cmd/accrual && go build -buildvcs=$(BUILD_VCS) -o accrual
+	cd cmd/accrual && go build -buildvcs=$(BUILD_VCS) -o accrual.exe
 
 build: build-gophermart build-accrual
 
@@ -36,14 +36,14 @@ test-static:
 test-gophermart: build
 	gophermarttest \
 		-test.v -test.run=^TestGophermart$ \
-		-gophermart-binary-path=cmd/gophermart/gophermart \
+		-gophermart-binary-path=cmd/gophermart/gophermart.exe \
 		-gophermart-host=localhost \
 		-gophermart-port=$(GOPHERMART_PORT) \
-		-gophermart-database-uri=$(GOPHERMART_DB_DSN) \
-		-accrual-binary-path=cmd/accrual/accrual \
+		-gophermart-database-uri="$(GOPHERMART_DB_DSN)" \
+		-accrual-binary-path=cmd/accrual/accrual.exe \
 		-accrual-host=localhost \
 		-accrual-port=$(ACCRUAL_PORT) \
-		-accrual-database-uri=$(ACCRUAL_DB_DSN)
+		-accrual-database-uri="$(ACCRUAL_DB_DSN)"
 
 help:
 	@echo ""

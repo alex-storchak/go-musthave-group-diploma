@@ -115,6 +115,8 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 					}
 				}
 
+				ticker.Stop()
+
 				go f.startAccrualWorker(ctx, order, done, errCh)
 			}
 		}
