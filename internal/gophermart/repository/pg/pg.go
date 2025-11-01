@@ -227,9 +227,7 @@ func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *mode
 			if res.Error != nil {
 				return fmt.Errorf("create default balance: %w", res.Error)
 			}
-		}
-
-		if res.RowsAffected > 0 {
+		} else {
 			res = tx.
 				WithContext(ctx).
 				Table("balance").
