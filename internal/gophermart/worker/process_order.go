@@ -195,7 +195,6 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 }
 
 func (f *ProcessOrder) GetOrders(ctx context.Context) {
-	fmt.Println(f.orders)
 	if len(f.orders) > 50 {
 		return
 	}

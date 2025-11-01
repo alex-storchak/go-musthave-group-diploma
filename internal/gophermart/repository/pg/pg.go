@@ -202,24 +202,48 @@ func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *mode
 			Table("orders").
 			Where("order_number = ?", accrualResponse.Number).
 			First(&order)
-
 		if result.Error != nil {
 			return fmt.Errorf("transaction level: %w", result.Error)
 		}
+
+		var balance models.ShowBalanceResponse
 
 		res := tx.
 			WithContext(ctx).
 			Table("balance").
 			Where("user_id = ?", order.UserID).
-			Updates(map[string]interface{}{
-				"current":    gorm.Expr("current + ?", accrualResponse.Accrual),
-				"updated_at": time.Now(),
-			})
-		if res.Error != nil {
-			return fmt.Errorf("update balance: %w", res.Error)
+			First(&balance)
+
+		if res.RowsAffected < 1 {
+			res = tx.
+				WithContext(ctx).
+				Table("balance").
+				Create(&models.Balance{
+					UserID:         order.UserID,
+					Current:        accrualResponse.Accrual,
+					TotalWithdrawn: 0,
+				})
+
+			if res.Error != nil {
+				return fmt.Errorf("create default balance: %w", res.Error)
+			}
 		}
 
-		res = st.conn.
+		if res.RowsAffected > 0 {
+			res = tx.
+				WithContext(ctx).
+				Table("balance").
+				Where("user_id = ?", order.UserID).
+				Updates(map[string]interface{}{
+					"current":    gorm.Expr("current + ?", accrualResponse.Accrual),
+					"updated_at": time.Now(),
+				})
+			if res.Error != nil {
+				return fmt.Errorf("update balance: %w", res.Error)
+			}
+		}
+
+		res = tx.
 			WithContext(ctx).
 			Table("orders").
 			Where("order_number = ?", accrualResponse.Number).
