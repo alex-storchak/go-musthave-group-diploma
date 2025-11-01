@@ -207,7 +207,7 @@ func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *mode
 		}
 
 		// 5. Обновление статуса заказа
-		if err := markOrderAsProcessed(tx, ctx, accrualResponse, order); err != nil {
+		if err := markOrderAsProcessed(tx, ctx, accrualResponse); err != nil {
 			return err
 		}
 
@@ -281,7 +281,7 @@ func updateUserBalance(tx *gorm.DB, ctx context.Context, userID models.UserID, a
 	return nil
 }
 
-func markOrderAsProcessed(tx *gorm.DB, ctx context.Context, resp *models.AccrualResponse, order models.Order) error {
+func markOrderAsProcessed(tx *gorm.DB, ctx context.Context, resp *models.AccrualResponse) error {
 	res := tx.
 		WithContext(ctx).
 		Table("orders").

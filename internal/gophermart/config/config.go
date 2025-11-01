@@ -12,7 +12,6 @@ type Config struct {
 	Accrual     *accrual.Config
 	LogLevel    string
 	DatabaseDsn string
-	AccrualAddr string
 }
 
 func GetConfig(args []string) (*Config, error) {
@@ -29,7 +28,7 @@ func GetConfig(args []string) (*Config, error) {
 		Accrual: &accrual.Config{
 			Addr:              accrual.DefaultAddr,
 			RequestTimeout:    accrual.DefaultRequestTimeout,
-			RetryAfterDefault: accrual.DefaultRetryAfterDefault,
+			RetryAfterDefault: accrual.DefaultRetryAfter,
 		},
 		DatabaseDsn: "host=127.127.126.41 port=5432 dbname=shorturl user=shorturl password=shorturl connect_timeout=10 sslmode=prefer",
 		LogLevel:    "info",
