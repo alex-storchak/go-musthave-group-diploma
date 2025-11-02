@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
@@ -36,8 +35,8 @@ type AccrualPool struct {
 	jobChan   chan *model.Order
 	logger    *zap.Logger
 	wg        sync.WaitGroup
-	started   atomic.Bool
-	closed    atomic.Bool
+	startOnce sync.Once
+	closeOnce sync.Once
 }
 
 func NewAccrualPool(
@@ -58,31 +57,29 @@ func NewAccrualPool(
 }
 
 func (p *AccrualPool) Start(ctx context.Context) {
-	if !p.started.CompareAndSwap(false, true) {
-		return
-	}
-
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		p.dispatcher(ctx)
-	}()
-
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		p.stuckOrdersWorker(ctx)
-	}()
-
-	p.wg.Add(p.cfg.WorkerCount)
-	for i := 0; i < p.cfg.WorkerCount; i++ {
-		go func(i int) {
+	p.startOnce.Do(func() {
+		p.wg.Add(1)
+		go func() {
 			defer p.wg.Done()
-			p.worker(ctx, i)
-		}(i)
-	}
+			p.dispatcher(ctx)
+		}()
 
-	p.logger.Info("accrual pool started", zap.Any("config", p.cfg))
+		p.wg.Add(1)
+		go func() {
+			defer p.wg.Done()
+			p.stuckOrdersWorker(ctx)
+		}()
+
+		p.wg.Add(p.cfg.WorkerCount)
+		for i := 0; i < p.cfg.WorkerCount; i++ {
+			go func(i int) {
+				defer p.wg.Done()
+				p.worker(ctx, i)
+			}(i)
+		}
+
+		p.logger.Info("accrual pool started", zap.Any("config", p.cfg))
+	})
 }
 
 func (p *AccrualPool) dispatcher(ctx context.Context) {
@@ -187,10 +184,9 @@ func (p *AccrualPool) resetStuckOrders(ctx context.Context) {
 }
 
 func (p *AccrualPool) Close() {
-	if !p.closed.CompareAndSwap(false, true) {
-		return
-	}
-	p.wg.Wait()
-	p.rules.Close()
-	p.logger.Info("accrual worker pool closed")
+	p.closeOnce.Do(func() {
+		p.wg.Wait()
+		p.rules.Close()
+		p.logger.Info("accrual worker pool closed")
+	})
 }

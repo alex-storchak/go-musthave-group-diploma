@@ -18,18 +18,19 @@ import (
 
 func main() {
 	ctx := context.Background()
-	if err := run(ctx); err != nil {
+	if err := run(ctx, os.Args); err != nil {
 		log.Fatalf("failed to run application: %v", err)
 	}
 }
 
 func run(
 	ctx context.Context,
+	args []string,
 ) error {
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
-	cfg, err := config.Load()
+	cfg, err := config.Load(args[1:])
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}

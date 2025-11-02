@@ -3,11 +3,9 @@ package config
 import (
 	"errors"
 	"fmt"
-	"log"
-	"os"
-
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"log"
 )
 
 var (
@@ -64,12 +62,12 @@ func initViper() error {
 	return nil
 }
 
-func Load() (*Config, error) {
+func Load(args []string) (*Config, error) {
 	fs := pflag.NewFlagSet("accrual", pflag.ContinueOnError)
 	if err := bindFlags(fs); err != nil {
 		return nil, fmt.Errorf("bind flags: %w", err)
 	}
-	if err := fs.Parse(os.Args[1:]); err != nil {
+	if err := fs.Parse(args); err != nil {
 		log.Printf("warn: failed to parse flags, falling back to env/file: %v", err)
 	}
 

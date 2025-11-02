@@ -20,8 +20,8 @@ type CacheRulesProvider struct {
 	cacheMu    *sync.Mutex
 	logger     *zap.Logger
 	wg         sync.WaitGroup
-	started    atomic.Bool
-	closed     atomic.Bool
+	startOnce  sync.Once
+	closeOnce  sync.Once
 }
 
 func NewCacheRulesProvider(
@@ -41,17 +41,15 @@ func NewCacheRulesProvider(
 }
 
 func (p *CacheRulesProvider) Start(ctx context.Context) {
-	if !p.started.CompareAndSwap(false, true) {
-		return
-	}
+	p.startOnce.Do(func() {
+		p.wg.Add(1)
+		go func() {
+			defer p.wg.Done()
+			p.startCacheRefresher(ctx)
+		}()
 
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
-		p.startCacheRefresher(ctx)
-	}()
-
-	p.logger.Info("rules cache refresher started", zap.Any("cache_ttl", p.cacheTTL))
+		p.logger.Info("rules cache refresher started", zap.Any("cache_ttl", p.cacheTTL))
+	})
 }
 
 func (p *CacheRulesProvider) startCacheRefresher(ctx context.Context) {
@@ -140,9 +138,8 @@ func (p *CacheRulesProvider) ensureFreshRules(ctx context.Context) ([]model.Rewa
 }
 
 func (p *CacheRulesProvider) Close() {
-	if !p.closed.CompareAndSwap(false, true) {
-		return
-	}
-	p.wg.Wait()
-	p.logger.Info("cache rules provider closed")
+	p.closeOnce.Do(func() {
+		p.wg.Wait()
+		p.logger.Info("cache rules provider closed")
+	})
 }
