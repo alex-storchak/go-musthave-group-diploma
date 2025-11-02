@@ -66,7 +66,8 @@ func run(ctx context.Context, args []string) error {
 	}
 	go processOrder.StartProcessOrder(ctx)
 
-	return handler.Serve(ctx, zl, cfg.Handlers, router)
+	handler.Serve(ctx, zl, cfg.Handlers, router)
+	return nil
 }
 
 func main() {

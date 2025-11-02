@@ -3,8 +3,8 @@ package validators
 import (
 	"fmt"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/codec"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/utils"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/validator"
 	"net/http"
 )
 
@@ -22,17 +22,17 @@ func (o *StoreWithdrawalWrapper) Valid(r *http.Request) (map[string]map[string]s
 	}
 
 	// 2. Валидация номера
-	numberProblems := validateNumberWithdrawal(o.StoreWithdrawalRequest.Number)
+	numberProblems := validateNumberWithdrawal(o.Number)
 	if len(numberProblems) > 0 {
 		problems["number"] = numberProblems
-		o.StoreWithdrawalRequest.Number = ""
+		o.Number = ""
 	}
 
 	// 3. Валидация суммы
-	sumProblems := validateSum(float64(o.StoreWithdrawalRequest.Sum))
+	sumProblems := validateSum(float64(o.Sum))
 	if len(sumProblems) > 0 {
 		problems["sum"] = sumProblems
-		o.StoreWithdrawalRequest.Sum = 0
+		o.Sum = 0
 	}
 
 	return problems, nil
@@ -59,11 +59,11 @@ func validateNumberWithdrawal(number string) map[string]string {
 		return problems
 	}
 
-	if !utils.IsNumericRegex(number) {
+	if !validator.IsNumericRegex(number) {
 		problems["is_numeric"] = "number must contain only digits"
 	}
 
-	if !utils.IsValidLuhn(number) {
+	if !validator.IsValidLuhn(number) {
 		problems["is_valid"] = "the number is not valid according to the Luhn algorithm"
 	}
 

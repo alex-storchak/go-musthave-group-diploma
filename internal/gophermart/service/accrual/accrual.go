@@ -20,14 +20,14 @@ type Accrual struct {
 	httpClient *http.Client
 }
 
-func New(cfg *config.Config) (*Accrual, error) {
+func New(cfg *config.Config) *Accrual {
 	return &Accrual{
 		cfg:        cfg,
 		RetryAfter: 0,
 		httpClient: &http.Client{
 			Timeout: cfg.RequestTimeout,
 		},
-	}, nil
+	}
 }
 
 func newRetryAfter(n time.Duration) error {
@@ -70,7 +70,7 @@ func (c *Accrual) Get(ctx context.Context, order models.OrderProcess) (*models.A
 		return &res, nil
 
 	case http.StatusTooManyRequests:
-		c.RetryAfter = 60 * time.Second
+		c.RetryAfter = config.DefaultRetryAfter
 		if hdr := resp.Header.Get("Retry-After"); hdr != "" {
 			if sec, err := strconv.Atoi(strings.TrimSpace(hdr)); err == nil {
 				c.RetryAfter = time.Duration(sec) * time.Second

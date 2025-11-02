@@ -18,6 +18,8 @@ const (
 type RoundedFloat64 float64
 
 // MarshalJSON реализует интерфейс json.Marshaler для RoundedFloat64
+//
+//nolint:unparam // error always nil but required by the json.Marshaler interface
 func (f RoundedFloat64) MarshalJSON() ([]byte, error) {
 	// Округляем значение до 2 знаков после запятой
 	rounded := math.Round(float64(f)*100) / 100

@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+const defaultCtxTimeout = 60 * time.Second
+
 type Gophermart interface {
 	StoreWithdrawal(ctx context.Context, storeWithdrawal models.StoreWithdrawal, setDefaultBalance models.SetDefaultBalanceRequest) error
 	IndexWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) ([]models.IndexWithdrawalResponse, error)
@@ -34,7 +36,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 		indexWithdrawal := models.IndexWithdrawal{UserID: userID}
 
 		// Устанавливаем таймаут контекста
-		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), defaultCtxTimeout)
 		defer cancel()
 
 		// Проверяем количество записей
@@ -111,8 +113,8 @@ func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 		}
 
 		err = gophermart.StoreWithdrawal(r.Context(), models.StoreWithdrawal{
-			Number: storeWithdrawalWrapper.StoreWithdrawalRequest.Number,
-			Sum:    storeWithdrawalWrapper.StoreWithdrawalRequest.Sum,
+			Number: storeWithdrawalWrapper.Number,
+			Sum:    storeWithdrawalWrapper.Sum,
 			UserID: userID,
 		}, models.SetDefaultBalanceRequest{
 			UserID:         userID,

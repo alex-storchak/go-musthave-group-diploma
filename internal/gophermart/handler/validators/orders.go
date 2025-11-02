@@ -2,8 +2,9 @@ package validators
 
 import (
 	"fmt"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/utils"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
+	utils "github.com/alex-storchak/go-musthave-group-diploma/internal/utils/strings"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/validator"
 	"io"
 	"net/http"
 )
@@ -32,7 +33,7 @@ func (o *StoreOrderWrapper) Valid(r *http.Request) (map[string]map[string]string
 
 	// 4. Установка значения, если валидно
 	if len(problems) == 0 {
-		o.StoreOrder.Number = number
+		o.Number = number
 	}
 
 	return problems, nil
@@ -45,7 +46,7 @@ func readRequestBody(r *http.Request) ([]byte, error) {
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1024))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading request body: %w", err)
 	}
 	return body, nil
 }
@@ -58,11 +59,11 @@ func validateNumberOrder(number string) map[string]string {
 		return problems
 	}
 
-	if !utils.IsNumericRegex(number) {
+	if !validator.IsNumericRegex(number) {
 		problems["is_numeric"] = "number must contain only digits"
 	}
 
-	if !utils.IsValidLuhn(number) {
+	if !validator.IsValidLuhn(number) {
 		problems["is_valid"] = "the number is not valid according to the Luhn algorithm"
 	}
 

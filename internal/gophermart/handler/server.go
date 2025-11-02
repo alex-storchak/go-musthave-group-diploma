@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const defaultShutdownCtxTimeout = 10 * time.Second
+
 func NewRouter(
 	logger *zap.Logger,
 	cfg *config.Config,
@@ -29,7 +31,7 @@ func Serve(
 	logger *zap.Logger,
 	cfg *config.Config,
 	router http.Handler,
-) error {
+) {
 	httpServer := &http.Server{
 		Addr:    cfg.ServerAddr,
 		Handler: router,
@@ -46,7 +48,7 @@ func Serve(
 		defer wg.Done()
 		<-ctx.Done()
 		shutdownCtx := context.Background()
-		shutdownCtx, cancel := context.WithTimeout(shutdownCtx, 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(shutdownCtx, defaultShutdownCtxTimeout)
 		defer cancel()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
 			logger.Error("error shutting down http server", zap.Error(err))
@@ -54,5 +56,4 @@ func Serve(
 		logger.Info("close server", zap.String("addr", cfg.ServerAddr))
 	}()
 	wg.Wait()
-	return nil
 }

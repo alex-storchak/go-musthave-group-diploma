@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+const (
+	DefaultMaxIdleConnections    = 10
+	DefaultMaxOpenConnections    = 100
+	DefaultConnectionMaxLifetime = 10 * time.Minute
+)
+
 // InitGORMDB инициализирует GORM DB с драйвером pgx
 func InitGORMDB(c *config.Config) (*gorm.DB, error) {
 	sqlDB, err := sql.Open("pgx", c.DatabaseDsn)
@@ -19,9 +25,9 @@ func InitGORMDB(c *config.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to open pgx connection: %w", err)
 	}
 
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(100)
-	sqlDB.SetConnMaxLifetime(10 * time.Minute)
+	sqlDB.SetMaxIdleConns(DefaultMaxIdleConnections)
+	sqlDB.SetMaxOpenConns(DefaultMaxOpenConnections)
+	sqlDB.SetConnMaxLifetime(DefaultConnectionMaxLifetime)
 
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		Conn: sqlDB,

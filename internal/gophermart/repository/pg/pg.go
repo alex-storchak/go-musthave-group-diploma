@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+const getNewOrdersBatchSize = 100
+
 type Store struct {
 	conn *gorm.DB
 }
@@ -64,7 +66,7 @@ func (st *Store) GetOrderUser(ctx context.Context, getOrderUser models.GetOrderU
 
 func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess) ([]models.OrderProcess, error) {
 
-	var numbers []string
+	numbers := make([]string, 0, getNewOrdersBatchSize)
 	for _, order := range orders {
 		numbers = append(numbers, order.Number)
 	}
@@ -85,7 +87,7 @@ func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess)
 				WHERE status IN ('NEW', 'PROCESSING')
 				%s
 				ORDER BY uploaded_at ASC
-				LIMIT 100
+				LIMIT %d
 				FOR UPDATE
 			),
 			updated_orders AS (
@@ -100,7 +102,7 @@ func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess)
 				RETURNING order_number, processed_at
 			)
 			SELECT order_number FROM updated_orders ORDER BY processed_at ASC;
-		`, str)).Rows()
+		`, str, getNewOrdersBatchSize)).Rows()
 
 		if err != nil {
 			return fmt.Errorf("run sql: %w", err)
@@ -123,7 +125,7 @@ func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess)
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get new orders in transaction: %w", err)
 	}
 
 	return result, nil
@@ -184,35 +186,39 @@ func (st *Store) UpdateOrderInvalid(ctx context.Context, accrualResponse *models
 }
 
 func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *models.AccrualResponse) error {
-	return st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Настройка изоляции транзакции
 		if err := setupTransactionIsolation(tx); err != nil {
-			return err
+			return fmt.Errorf("setup transaction isolation: %w", err)
 		}
 
 		// 2. Валидация входных данных
 		if err := validateAccrualResponse(accrualResponse); err != nil {
-			return err
+			return fmt.Errorf("validate accrual response: %w", err)
 		}
 
 		// 3. Получение заказа
 		order, err := getOrderByNumber(tx, ctx, accrualResponse.Number)
 		if err != nil {
-			return err
+			return fmt.Errorf("get order by number: %w", err)
 		}
 
 		// 4. Обновление баланса пользователя
 		if err := updateUserBalance(tx, ctx, order.UserID, accrualResponse.Accrual); err != nil {
-			return err
+			return fmt.Errorf("update user balance: %w", err)
 		}
 
 		// 5. Обновление статуса заказа
 		if err := markOrderAsProcessed(tx, ctx, accrualResponse); err != nil {
-			return err
+			return fmt.Errorf("mark order as processed: %w", err)
 		}
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("update order processed transaction: %w", err)
+	}
+	return nil
 }
 
 func setupTransactionIsolation(tx *gorm.DB) error {
@@ -415,16 +421,16 @@ func (st *Store) StoreWithdrawal(
 	storeWithdrawal models.StoreWithdrawal,
 	setDefaultBalance models.SetDefaultBalanceRequest,
 ) error {
-	return st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Настройка изоляции транзакции
 		if err := setupTransactionIsolation(tx); err != nil {
-			return err
+			return fmt.Errorf("setup transaction isolation: %w", err)
 		}
 
 		// 2. Получение текущего баланса пользователя
 		balance, err := getUserBalance(tx, ctx, storeWithdrawal.UserID, setDefaultBalance)
 		if err != nil {
-			return err
+			return fmt.Errorf("get user balance: %w", err)
 		}
 
 		// 3. Проверка достаточности средств
@@ -434,16 +440,20 @@ func (st *Store) StoreWithdrawal(
 
 		// 4. Обновление баланса (списание)
 		if err := deductWithdrawalAmount(tx, ctx, storeWithdrawal); err != nil {
-			return err
+			return fmt.Errorf("deduct withdrawal amount: %w", err)
 		}
 
 		// 5. Создание записи о выводе
 		if err := createWithdrawalRecord(tx, ctx, storeWithdrawal); err != nil {
-			return err
+			return fmt.Errorf("create withdrawal record: %w", err)
 		}
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("store withdrawal transaction: %w", err)
+	}
+	return nil
 }
 
 func getUserBalance(tx *gorm.DB, ctx context.Context, userID models.UserID, setDefaultBalance models.SetDefaultBalanceRequest) (models.ShowBalanceResponse, error) {

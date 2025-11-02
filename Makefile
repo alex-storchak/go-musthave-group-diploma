@@ -1,4 +1,6 @@
-.PHONY: help build-gophermart build-accrual build lint lint-fix lint-verbose lint-accrual test-static test-gophermart
+.PHONY: help lint lint-fix lint-verbose lint-accrual test-static
+.PHONY: build-gophermart build-accrual build test-gophermart
+.PHONY: build-gophermart-windows build-accrual-windows build-windows test-gophermart-windows
 
 BUILD_VCS ?= true
 
@@ -11,12 +13,17 @@ ACCRUAL_DB_DSN ?= "postgres://accrual:StrongPassword02-accrual@localhost:54322/a
 GOLANGCI_LINT = golangci-lint
 
 build-gophermart:
+	cd cmd/gophermart && go build -buildvcs=$(BUILD_VCS) -o gophermart
+build-gophermart-windows:
 	cd cmd/gophermart && go build -buildvcs=$(BUILD_VCS) -o gophermart.exe
 
 build-accrual:
+	cd cmd/accrual && go build -buildvcs=$(BUILD_VCS) -o accrual
+build-accrual-windows:
 	cd cmd/accrual && go build -buildvcs=$(BUILD_VCS) -o accrual.exe
 
 build: build-gophermart build-accrual
+build-windows: build-gophermart-windows build-accrual-windows
 
 lint:
 	$(GOLANGCI_LINT) run
@@ -34,6 +41,18 @@ test-static:
 	go vet -vettool=$(which statictest) ./...
 
 test-gophermart: build
+	gophermarttest \
+		-test.v -test.run=^TestGophermart$ \
+		-gophermart-binary-path=cmd/gophermart/gophermart \
+		-gophermart-host=localhost \
+		-gophermart-port=$(GOPHERMART_PORT) \
+		-gophermart-database-uri=$(GOPHERMART_DB_DSN) \
+		-accrual-binary-path=cmd/accrual/accrual \
+		-accrual-host=localhost \
+		-accrual-port=$(ACCRUAL_PORT) \
+		-accrual-database-uri=$(ACCRUAL_DB_DSN)
+
+test-gophermart-windows: build-windows
 	gophermarttest \
 		-test.v -test.run=^TestGophermart$ \
 		-gophermart-binary-path=cmd/gophermart/gophermart.exe \

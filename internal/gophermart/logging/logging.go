@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -9,7 +10,7 @@ import (
 func Initialize(c *config.Config) (*zap.Logger, error) {
 	lvl, err := zap.ParseAtomicLevel(c.LogLevel)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse log level: %w", err)
 	}
 
 	encoderConfig := zapcore.EncoderConfig{
@@ -29,7 +30,7 @@ func Initialize(c *config.Config) (*zap.Logger, error) {
 	cfg.EncoderConfig = encoderConfig
 	zl, err := cfg.Build()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build zap logger: %w", err)
 	}
 
 	return zl, nil

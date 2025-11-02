@@ -14,7 +14,11 @@ import (
 	"time"
 )
 
-const maxConcurrent = 10
+const (
+	maxConcurrent           = 10
+	ordersBufferSize        = 50
+	getOrdersTickerDuration = 500 * time.Millisecond
+)
 
 type ProcessOrder struct {
 	mu      *sync.RWMutex
@@ -30,10 +34,7 @@ func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger) (*Process
 		return nil, fmt.Errorf("no init repository: %w", err)
 	}
 
-	acc, err := accrual.New(cfg.Accrual)
-	if err != nil {
-		return nil, fmt.Errorf("new accrual: %w", err)
-	}
+	acc := accrual.New(cfg.Accrual)
 
 	return &ProcessOrder{
 		mu:      &sync.RWMutex{},
@@ -45,7 +46,11 @@ func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger) (*Process
 }
 
 func NewRepository(conn *gorm.DB) (repository.Repository, error) {
-	return pg.NewStore(conn)
+	repo, err := pg.NewStore(conn)
+	if err != nil {
+		return nil, fmt.Errorf("create repository: %w", err)
+	}
+	return repo, nil
 }
 
 func (f *ProcessOrder) FindUnprocessedOrder() (*models.OrderProcess, bool) {
@@ -122,7 +127,6 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 		}
 	}()
 
-	time.Sleep(500 * time.Millisecond)
 	for i := 0; i < maxConcurrent; i++ {
 		done <- struct{}{}
 	}
@@ -180,7 +184,7 @@ func (f *ProcessOrder) startAccrualWorker(
 }
 
 func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(getOrdersTickerDuration)
 	defer ticker.Stop()
 
 	f.logger.Info("start process order")
@@ -197,7 +201,7 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 }
 
 func (f *ProcessOrder) GetOrders(ctx context.Context) {
-	if len(f.orders) > 50 {
+	if len(f.orders) > ordersBufferSize {
 		return
 	}
 

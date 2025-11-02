@@ -13,7 +13,7 @@ type Validator interface {
 func Decode(r *http.Request, v Validator) (map[string]map[string]string, error) {
 	problems, err := v.Valid(r)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("check valid on request: %w", err)
 	}
 
 	if len(problems) > 0 {

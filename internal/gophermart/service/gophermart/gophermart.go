@@ -16,7 +16,7 @@ type Gophermart struct {
 func NewGophermart(conn *gorm.DB) (*Gophermart, error) {
 	store, err := NewRepository(conn)
 	if err != nil {
-		return nil, fmt.Errorf("no init repository: %w", err)
+		return nil, fmt.Errorf("init repository: %w", err)
 	}
 
 	return &Gophermart{
@@ -25,15 +25,27 @@ func NewGophermart(conn *gorm.DB) (*Gophermart, error) {
 }
 
 func NewRepository(conn *gorm.DB) (repository.Repository, error) {
-	return pg.NewStore(conn)
+	repo, err := pg.NewStore(conn)
+	if err != nil {
+		return nil, fmt.Errorf("create repository: %w", err)
+	}
+	return repo, nil
 }
 
 func (f *Gophermart) Ping(ctx context.Context) error {
-	return f.store.Ping(ctx)
+	err := f.store.Ping(ctx)
+	if err != nil {
+		return fmt.Errorf("ping repository: %w", err)
+	}
+	return nil
 }
 
 func (f *Gophermart) CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error) {
-	return f.store.CountOrder(ctx, indexOrder)
+	count, err := f.store.CountOrder(ctx, indexOrder)
+	if err != nil {
+		return 0, fmt.Errorf("count orders: %w", err)
+	}
+	return count, nil
 }
 
 func (f *Gophermart) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error) {
@@ -41,29 +53,57 @@ func (f *Gophermart) IndexOrder(ctx context.Context, indexOrder models.IndexOrde
 }
 
 func (f *Gophermart) StoreOrder(ctx context.Context, storeOrder models.StoreOrder) error {
-	return f.store.SetOrder(ctx, storeOrder)
+	err := f.store.SetOrder(ctx, storeOrder)
+	if err != nil {
+		return fmt.Errorf("store order: %w", err)
+	}
+	return nil
 }
 
 func (f *Gophermart) GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error) {
-	return f.store.GetOrder(ctx, getOrder)
+	order, err := f.store.GetOrder(ctx, getOrder)
+	if err != nil {
+		return nil, fmt.Errorf("get order: %w", err)
+	}
+	return order, nil
 }
 
 func (f *Gophermart) GetBalance(ctx context.Context, getBalance models.GetBalanceRequest) (*models.ShowBalanceResponse, error) {
-	return f.store.GetBalance(ctx, getBalance)
+	balance, err := f.store.GetBalance(ctx, getBalance)
+	if err != nil {
+		return nil, fmt.Errorf("get balance: %w", err)
+	}
+	return balance, nil
 }
 
 func (f *Gophermart) CreateDefaultBalance(ctx context.Context, setDefaultBalance models.SetDefaultBalanceRequest) error {
-	return f.store.SetDefaultBalance(ctx, setDefaultBalance)
+	err := f.store.SetDefaultBalance(ctx, setDefaultBalance)
+	if err != nil {
+		return fmt.Errorf("create default balance: %w", err)
+	}
+	return nil
 }
 
 func (f *Gophermart) StoreWithdrawal(ctx context.Context, storeWithdrawal models.StoreWithdrawal, setDefaultBalance models.SetDefaultBalanceRequest) error {
-	return f.store.StoreWithdrawal(ctx, storeWithdrawal, setDefaultBalance)
+	err := f.store.StoreWithdrawal(ctx, storeWithdrawal, setDefaultBalance)
+	if err != nil {
+		return fmt.Errorf("store withdrawal: %w", err)
+	}
+	return nil
 }
 
 func (f *Gophermart) CountWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) (int64, error) {
-	return f.store.CountWithdrawal(ctx, indexWithdrawal)
+	count, err := f.store.CountWithdrawal(ctx, indexWithdrawal)
+	if err != nil {
+		return 0, fmt.Errorf("count withdrawal: %w", err)
+	}
+	return count, nil
 }
 
 func (f *Gophermart) IndexWithdrawal(ctx context.Context, indexWithdrawal models.IndexWithdrawal) ([]models.IndexWithdrawalResponse, error) {
-	return f.store.IndexWithdrawal(ctx, indexWithdrawal)
+	withdrawals, err := f.store.IndexWithdrawal(ctx, indexWithdrawal)
+	if err != nil {
+		return nil, fmt.Errorf("index withdrawal: %w", err)
+	}
+	return withdrawals, nil
 }

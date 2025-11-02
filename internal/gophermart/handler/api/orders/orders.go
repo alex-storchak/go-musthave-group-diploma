@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	utils "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/utils/auth"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/validators"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
@@ -12,6 +13,8 @@ import (
 	"net/http"
 	"time"
 )
+
+const defaultCtxTimeout = 60 * time.Second
 
 type Gophermart interface {
 	CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error)
@@ -33,7 +36,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 
 		indexOrder := models.IndexOrder{UserID: userID}
 
-		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), defaultCtxTimeout)
 		defer cancel()
 
 		count, err := gophermart.CountOrder(ctx, indexOrder)
@@ -99,7 +102,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 				return
 
 			case <-ctx.Done():
-				logger.Info("request context cancelled")
+				logger.Info("request context canceled")
 				if _, err = w.Write([]byte("\n]")); err != nil {
 					logger.Error("error writing end of json array", zap.Error(err))
 				}
@@ -158,7 +161,7 @@ func decodeAndValidateRequest(r *http.Request, logger *zap.Logger) (*models.Stor
 	problems, err := validators.Decode(r, storeOrderWrapper)
 	if err != nil {
 		logger.Debug("bad request", zap.Error(err))
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("decode request: %w", err)
 	}
 
 	return storeOrderWrapper.StoreOrder, problems, nil
@@ -210,7 +213,7 @@ func determineResponseStatus(
 			Number: storeOrder.Number,
 		})
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("getting order %s: %w", storeOrder.Number, err)
 		}
 
 		if order == nil {

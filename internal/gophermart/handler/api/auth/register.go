@@ -14,7 +14,7 @@ import (
 )
 
 type UserRegisterer interface {
-	Register(ctx context.Context, string, password string) (*models.User, string, error)
+	Register(ctx context.Context, login, password string) (*models.User, string, error)
 }
 
 //nolint:dupl // register and login are different business processes with possible same structure

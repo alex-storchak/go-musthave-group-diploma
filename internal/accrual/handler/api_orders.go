@@ -3,16 +3,14 @@ package handler
 import (
 	"context"
 	"errors"
-	"net/http"
-	"strconv"
-	"strings"
-	"unicode"
-
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/codec"
+	utils "github.com/alex-storchak/go-musthave-group-diploma/internal/utils/strings"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/validator"
 	"go.uber.org/zap"
+	"net/http"
+	"strconv"
 )
 
 type reqGood struct {
@@ -54,7 +52,7 @@ type OrderRegisterer interface {
 
 func prepareOrder(order reqOrder) *model.Order {
 	mo := model.Order{
-		Number: removeWhitespaces(order.Number),
+		Number: utils.RemoveWhitespaces(order.Number),
 		Goods:  make([]model.Good, 0, len(order.Goods)),
 	}
 	for _, g := range order.Goods {
@@ -65,15 +63,6 @@ func prepareOrder(order reqOrder) *model.Order {
 		mo.Goods = append(mo.Goods, mg)
 	}
 	return &mo
-}
-
-func removeWhitespaces(s string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) {
-			return -1
-		}
-		return r
-	}, s)
 }
 
 func handleOrders(l *zap.Logger, reg OrderRegisterer) http.HandlerFunc {

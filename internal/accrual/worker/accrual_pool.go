@@ -116,16 +116,11 @@ func (p *AccrualPool) dispatchBatch(ctx context.Context) {
 	p.logger.Debug("processing orders", zap.Int("orders_count", len(orders)))
 
 	for i := range orders {
-		if ctx.Err() != nil {
-			p.logger.Debug("ctx done, stop sending orders to jobChannel")
-			return
-		}
-
 		select {
-		case p.jobChan <- &orders[i]:
 		case <-ctx.Done():
 			p.logger.Debug("ctx done while sending, stop sending orders")
 			return
+		case p.jobChan <- &orders[i]:
 		}
 	}
 }

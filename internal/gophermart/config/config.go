@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	handlers "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
 	accrual "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual/config"
 	"os"
@@ -62,7 +63,7 @@ func GetConfig(args []string) (*Config, error) {
 	fs.StringVar(&cfg.Accrual.Addr, "r", cfg.Accrual.Addr, "address accrual")
 	err := fs.Parse(args)
 	if err != nil {
-		return &Config{}, err
+		return &Config{}, fmt.Errorf("parse arguments for flagset: %w", err)
 	}
 
 	return &cfg, nil
