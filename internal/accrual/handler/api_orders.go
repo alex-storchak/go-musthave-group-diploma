@@ -13,6 +13,13 @@ import (
 	"strconv"
 )
 
+const (
+	MsgEmptyOrderNumber     = "order is required"
+	MsgInvalidOrderNumber   = "order is invalid (Luhn algorithm check failed)"
+	MsgEmptyGoodDescription = "description is required"
+	MsgInvalidGoodPrice     = "price must be greater than 0"
+)
+
 type reqGood struct {
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
@@ -27,19 +34,17 @@ func (o reqOrder) Valid() validator.Problems {
 	problems := make(validator.Problems)
 
 	if o.Number == "" {
-		problems["order"] = "order is required"
-	}
-
-	if !validator.IsValidLuhn(o.Number) {
-		problems["order"] = "order is invalid (Luhn algorithm check failed)"
+		problems["order"] = MsgEmptyOrderNumber
+	} else if !validator.IsValidLuhn(o.Number) {
+		problems["order"] = MsgInvalidOrderNumber
 	}
 
 	for i, g := range o.Goods {
 		if g.Description == "" {
-			problems["goods."+strconv.Itoa(i)+".description"] = "description is required"
+			problems["goods."+strconv.Itoa(i)+".description"] = MsgEmptyGoodDescription
 		}
 		if g.Price <= 0 {
-			problems["goods."+strconv.Itoa(i)+".price"] = "price must be greater than 0"
+			problems["goods."+strconv.Itoa(i)+".price"] = MsgInvalidGoodPrice
 		}
 	}
 
