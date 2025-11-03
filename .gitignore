@@ -29,3 +29,6 @@ autotest/
 
 # local configs
 configs/accrual/*
+
+# mocks
+**/mocks/

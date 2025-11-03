@@ -14,6 +14,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	MsgEmptyMatch        = "non-empty match is required"
+	MsgInvalidReward     = "reward must be greater than 0"
+	MsgInvalidRewardType = "reward_type must be 'pt' or '%'"
+)
+
 type reqRewardRule struct {
 	Match      string  `json:"match"`
 	Reward     float64 `json:"reward"`
@@ -24,15 +30,15 @@ func (r reqRewardRule) Valid() validator.Problems {
 	problems := make(validator.Problems)
 
 	if r.Match == "" {
-		problems["match"] = "non-empty match is required"
+		problems["match"] = MsgEmptyMatch
 	}
 
 	if r.Reward <= 0 {
-		problems["reward"] = "reward must be greater than 0"
+		problems["reward"] = MsgInvalidReward
 	}
 
 	if r.RewardType != "pt" && r.RewardType != "%" {
-		problems["reward_type"] = "reward_type must be 'pt' or '%'"
+		problems["reward_type"] = MsgInvalidRewardType
 	}
 
 	return problems
