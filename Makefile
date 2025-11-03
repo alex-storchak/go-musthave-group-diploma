@@ -1,6 +1,9 @@
-.PHONY: help lint lint-fix lint-verbose lint-accrual test-static
+.PHONY: help
+.PHONY: lint lint-fix lint-verbose lint-accrual
+.PHONY: mock-generate test test-static
 .PHONY: build-gophermart build-accrual build test-gophermart
 .PHONY: build-gophermart-windows build-accrual-windows build-windows test-gophermart-windows
+.PHONY: clean clean-bin clean-mock
 
 BUILD_VCS ?= true
 
@@ -36,6 +39,28 @@ lint-verbose:
 
 lint-accrual:
 	$(GOLANGCI_LINT) run ./internal/accrual/...
+
+mock-generate:
+	mockery
+
+clean-mock:
+	@echo "Removing generated mocks..."
+	# Находим каталоги 'mocks' и удаляем mock_*.go внутри
+	@find . -type d -name mocks -prune -exec sh -c ' \
+		for d; do \
+			find "$$d" -maxdepth 1 -type f -name "mock_*.go" -print -delete; \
+			rmdir "$$d" 2>/dev/null || true; \
+		done' sh {} +
+	@echo "Done."
+
+clean-bin:
+	rm -f cmd/gophermart/gophermart
+	rm -f cmd/accrual/accrual
+
+clean: clean-mock clean-bin
+
+test:
+	go test ./...
 
 test-static:
 	go vet -vettool=$(which statictest) ./...
@@ -80,6 +105,13 @@ help:
 	@echo "  lint-verbose       Run golangci-lint with -v flag"
 	@echo "  lint-accrual       Run golangci-lint on internal accrual package"
 	@echo ""
+	@echo "  mock-generate      Generate mocks for interfaces"
+	@echo ""
+	@echo "  clean              Clean up mocks and binaries"
+	@echo "  clean-mock         Clean up mocks"
+	@echo "  clean-bin          Clean up binaries"
+	@echo ""
+	@echo "  test               Run all tests"
 	@echo "  test-static        Run required autotest statictest (binary file \"statictest\" must be available from PATH)"
 	@echo "  test-gophermart    Run required autotest gophermarttest (binary file \"gophermarttest\" must be available from PATH)"
 	@echo ""

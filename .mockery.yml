@@ -1,0 +1,20 @@
+all: false
+dir: '{{.InterfaceDir}}/mocks'
+filename: "mock_{{.InterfaceName}}.go"
+force-file-write: true
+formatter: gofmt
+include-auto-generated: false
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: 'mocks'
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-schema: '{{.Template}}.schema.json'
+packages:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/handler:
+    interfaces:
+      RuleRegisterer:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker:
+    interfaces:
+      RulesProvider:
