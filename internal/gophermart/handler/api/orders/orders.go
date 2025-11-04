@@ -37,7 +37,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 
 		indexOrder := models.IndexOrder{UserID: userID}
 
-		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), defaultCtxTimeout)
 		defer cancel()
 
 		count, err := gophermart.CountOrder(ctx, indexOrder)
@@ -103,7 +103,7 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 				return
 
 			case <-ctx.Done():
-				logger.Info("request context cancelled")
+				logger.Info("request context canceled")
 				if _, err = w.Write([]byte("\n]")); err != nil {
 					logger.Error("error writing end of json array", zap.Error(err))
 				}
