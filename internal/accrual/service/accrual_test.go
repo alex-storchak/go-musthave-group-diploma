@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/repository"
 	"github.com/stretchr/testify/require"
@@ -57,7 +56,7 @@ func TestAccrual_RegisterOrder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
-			ctx := context.Background()
+			ctx := t.Context()
 			mockOrdersRepo := mocks.NewMockOrdersRepository(t)
 			mockRulesRepo := mocks.NewMockRulesRepository(t)
 			logger := zap.NewNop()
@@ -129,7 +128,7 @@ func TestAccrual_RegisterRule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
-			ctx := context.Background()
+			ctx := t.Context()
 			mockOrdersRepo := mocks.NewMockOrdersRepository(t)
 			mockRulesRepo := mocks.NewMockRulesRepository(t)
 			logger := zap.NewNop()
@@ -200,7 +199,7 @@ func TestAccrual_InformOrder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
-			ctx := context.Background()
+			ctx := t.Context()
 			mockOrdersRepo := mocks.NewMockOrdersRepository(t)
 			mockRulesRepo := mocks.NewMockRulesRepository(t)
 			logger := zap.NewNop()
