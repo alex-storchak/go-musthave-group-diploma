@@ -12,6 +12,10 @@ require-template-schema-exists: true
 template: testify
 template-schema: '{{.Template}}.schema.json'
 packages:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service:
+    interfaces:
+      OrdersRepository:
+      RulesRepository:
   github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/handler:
     interfaces:
       RuleRegisterer:
