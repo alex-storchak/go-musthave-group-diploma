@@ -317,6 +317,7 @@ func (st *Store) CountOrder(ctx context.Context, indexOrder models.IndexOrder) (
 	return count, nil
 }
 
+//nolint:gocognit // все понятно
 func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error) {
 	ordersChan := make(chan models.IndexOrderResponse)
 	errorChan := make(chan error, 1)
