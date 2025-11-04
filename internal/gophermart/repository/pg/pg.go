@@ -217,7 +217,7 @@ func (st *Store) executeUpdateOrderTransaction(
 	ctx context.Context,
 	accrualResponse *models.AccrualResponse,
 ) error {
-	return st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 
 		if err := setupTransactionIsolation(tx); err != nil {
 			return fmt.Errorf("setup transaction isolation: %w", err)
@@ -232,16 +232,20 @@ func (st *Store) executeUpdateOrderTransaction(
 			return fmt.Errorf("get order by number: %w", err)
 		}
 
-		if err := updateUserBalance(tx, ctx, order.UserID, accrualResponse.Accrual); err != nil {
+		if err = updateUserBalance(tx, ctx, order.UserID, accrualResponse.Accrual); err != nil {
 			return fmt.Errorf("update user balance: %w", err)
 		}
 
-		if err := markOrderAsProcessed(tx, ctx, accrualResponse); err != nil {
+		if err = markOrderAsProcessed(tx, ctx, accrualResponse); err != nil {
 			return fmt.Errorf("mark order as processed: %w", err)
 		}
 
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("update order transaction: %w", err)
+	}
+	return nil
 }
 
 func setupTransactionIsolation(tx *gorm.DB) error {
