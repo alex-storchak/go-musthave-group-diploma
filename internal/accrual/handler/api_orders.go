@@ -86,7 +86,7 @@ func handleOrders(l *zap.Logger, reg OrderRegisterer) http.HandlerFunc {
 			return
 		}
 
-		if err := reg.RegisterOrder(context.Background(), prepareOrder(order)); err != nil {
+		if err := reg.RegisterOrder(r.Context(), prepareOrder(order)); err != nil {
 			if errors.Is(err, service.ErrOrderAlreadyRegistered) {
 				w.WriteHeader(http.StatusConflict)
 				return

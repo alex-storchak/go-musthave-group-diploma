@@ -162,7 +162,7 @@ func TestHandleOrders(t *testing.T) {
 					Once()
 			},
 			expectedStatus: http.StatusAccepted,
-			description:    "should accept valid order",
+			description:    "should return 202 (Accepted) on valid order",
 		},
 		{
 			name:           "invalid JSON",
@@ -224,7 +224,7 @@ func TestHandleOrders(t *testing.T) {
 					Once()
 			},
 			expectedStatus: http.StatusAccepted,
-			description:    "should accept order with empty goods",
+			description:    "should return 202 (Accepted) on order with empty goods",
 		},
 	}
 
