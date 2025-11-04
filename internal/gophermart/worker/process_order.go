@@ -16,6 +16,7 @@ import (
 
 const (
 	maxConcurrent           = 10
+	sleepSearchOrders       = 50 * time.Millisecond
 	ordersBufferSize        = 50
 	getOrdersTickerDuration = 500 * time.Millisecond
 )
@@ -124,7 +125,7 @@ func (f *ProcessOrder) doneProcessing(
 			if found {
 				break
 			}
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(sleepSearchOrders)
 		}
 		if found {
 			break

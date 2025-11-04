@@ -8,13 +8,18 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/pg/migrator"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/gorm"
 	"strings"
 	"time"
 )
 
-const getNewOrdersBatchSize = 100
+const (
+	getNewOrdersBatchSize = 100
+	delayRetries          = 100 * time.Millisecond
+	maxRetries            = 3
+)
 
 type Store struct {
 	conn *gorm.DB
@@ -186,37 +191,59 @@ func (st *Store) UpdateOrderInvalid(ctx context.Context, accrualResponse *models
 }
 
 func (st *Store) UpdateOrderProcessed(ctx context.Context, accrualResponse *models.AccrualResponse) error {
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		lastErr = st.executeUpdateOrderTransaction(ctx, accrualResponse)
+		if lastErr == nil {
+			return nil
+		}
+
+		if !st.isRetryableError(lastErr) {
+			return lastErr
+		}
+
+		if attempt == maxRetries {
+			break
+		}
+
+		delay := delayRetries * time.Duration(attempt)
+		time.Sleep(delay)
+	}
+
+	return lastErr
+}
+
+func (st *Store) executeUpdateOrderTransaction(
+	ctx context.Context,
+	accrualResponse *models.AccrualResponse,
+) error {
 	err := st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 1. Настройка изоляции транзакции
+
 		if err := setupTransactionIsolation(tx); err != nil {
 			return fmt.Errorf("setup transaction isolation: %w", err)
 		}
 
-		// 2. Валидация входных данных
 		if err := validateAccrualResponse(accrualResponse); err != nil {
 			return fmt.Errorf("validate accrual response: %w", err)
 		}
 
-		// 3. Получение заказа
 		order, err := getOrderByNumber(tx, ctx, accrualResponse.Number)
 		if err != nil {
 			return fmt.Errorf("get order by number: %w", err)
 		}
 
-		// 4. Обновление баланса пользователя
-		if err := updateUserBalance(tx, ctx, order.UserID, accrualResponse.Accrual); err != nil {
+		if err = updateUserBalance(tx, ctx, order.UserID, accrualResponse.Accrual); err != nil {
 			return fmt.Errorf("update user balance: %w", err)
 		}
 
-		// 5. Обновление статуса заказа
-		if err := markOrderAsProcessed(tx, ctx, accrualResponse); err != nil {
+		if err = markOrderAsProcessed(tx, ctx, accrualResponse); err != nil {
 			return fmt.Errorf("mark order as processed: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("update order processed transaction: %w", err)
+		return fmt.Errorf("update order transaction: %w", err)
 	}
 	return nil
 }
@@ -422,6 +449,33 @@ func (st *Store) StoreWithdrawal(
 	storeWithdrawal models.StoreWithdrawal,
 	setDefaultBalance models.SetDefaultBalanceRequest,
 ) error {
+	var lastErr error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		lastErr = st.executeWithdrawalTransaction(ctx, storeWithdrawal, setDefaultBalance)
+		if lastErr == nil {
+			return nil
+		}
+
+		if !st.isRetryableError(lastErr) {
+			return lastErr
+		}
+
+		if attempt == maxRetries {
+			break
+		}
+
+		delay := delayRetries * time.Duration(attempt)
+		time.Sleep(delay)
+	}
+
+	return lastErr
+}
+
+func (st *Store) executeWithdrawalTransaction(
+	ctx context.Context,
+	storeWithdrawal models.StoreWithdrawal,
+	setDefaultBalance models.SetDefaultBalanceRequest,
+) error {
 	err := st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 1. Настройка изоляции транзакции
 		if err := setupTransactionIsolation(tx); err != nil {
@@ -440,12 +494,12 @@ func (st *Store) StoreWithdrawal(
 		}
 
 		// 4. Обновление баланса (списание)
-		if err := deductWithdrawalAmount(tx, ctx, storeWithdrawal); err != nil {
+		if err = deductWithdrawalAmount(tx, ctx, storeWithdrawal); err != nil {
 			return fmt.Errorf("deduct withdrawal amount: %w", err)
 		}
 
 		// 5. Создание записи о выводе
-		if err := createWithdrawalRecord(tx, ctx, storeWithdrawal); err != nil {
+		if err = createWithdrawalRecord(tx, ctx, storeWithdrawal); err != nil {
 			return fmt.Errorf("create withdrawal record: %w", err)
 		}
 
@@ -455,6 +509,26 @@ func (st *Store) StoreWithdrawal(
 		return fmt.Errorf("store withdrawal transaction: %w", err)
 	}
 	return nil
+}
+
+func (st *Store) isRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		// PostgreSQL: serialization_failure (40001), deadlock_detected (40P01)
+		return pgErr.Code == "40001" || pgErr.Code == "40P01"
+	}
+
+	if strings.Contains(err.Error(), "connection") ||
+		strings.Contains(err.Error(), "timeout") ||
+		strings.Contains(err.Error(), "i/o timeout") {
+		return true
+	}
+
+	return false
 }
 
 func getUserBalance(tx *gorm.DB, ctx context.Context, userID models.UserID, setDefaultBalance models.SetDefaultBalanceRequest) (models.ShowBalanceResponse, error) {
