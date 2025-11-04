@@ -21,7 +21,7 @@ func TestHandleOrderNumber(t *testing.T) {
 	tests := []struct {
 		name           string
 		orderNumber    string
-		setupMock      func(mockInf *mocks.MockOrderInformer)
+		setupMock      func(m *mocks.MockOrderInformer)
 		expectedStatus int
 		expectedJSON   string
 		description    string
