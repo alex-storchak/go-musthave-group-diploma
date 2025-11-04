@@ -25,10 +25,7 @@ type Gophermart interface {
 
 func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := prepareResponseWriter(w); err != nil {
-			logger.Error("failed to set response headers", zap.Error(err))
-			return
-		}
+		w.Header().Set("Content-Type", "application/json")
 
 		userID, err := utils.GetCtxUserID(r.Context())
 		if err != nil {
@@ -67,11 +64,6 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	}
 }
 
-func prepareResponseWriter(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	return nil
-}
-
 func sendUnauthorized(w http.ResponseWriter, logger *zap.Logger) {
 	w.WriteHeader(http.StatusUnauthorized)
 	logger.Info("unauthorized access")
@@ -94,7 +86,7 @@ func fetchOrderCount(
 	count, err := gophermart.CountOrder(ctx, indexOrder)
 	if err != nil {
 		logger.Error("count order", zap.Error(err))
-		return 0, err
+		return 0, fmt.Errorf("count order: %w", err)
 	}
 	return count, nil
 }
@@ -110,9 +102,10 @@ func isStreamingSupported(w http.ResponseWriter, logger *zap.Logger) bool {
 
 func writeJSONArrayStart(w http.ResponseWriter) error {
 	_, err := w.Write([]byte("[\n"))
-	return err
+	return fmt.Errorf("write: %w", err)
 }
 
+// nolint:gocognit // все понятно
 func streamOrders(
 	w http.ResponseWriter,
 	ordersChan <-chan models.IndexOrderResponse,
@@ -120,7 +113,10 @@ func streamOrders(
 	ctx context.Context,
 	logger *zap.Logger,
 ) error {
-	flusher := w.(http.Flusher)
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		return fmt.Errorf("streaming: %w", myerrors.ErrStreamingSupported)
+	}
 	encoder := json.NewEncoder(w)
 	isFirst := true
 
@@ -133,13 +129,13 @@ func streamOrders(
 
 			if !isFirst {
 				if _, err := w.Write([]byte(",\n")); err != nil {
-					return err
+					return fmt.Errorf("write: %w", err)
 				}
 			}
 			isFirst = false
 
 			if err := encoder.Encode(order); err != nil {
-				return err
+				return fmt.Errorf("encode: %w", err)
 			}
 
 			flusher.Flush()
@@ -157,7 +153,7 @@ func streamOrders(
 
 func writeJSONArrayEnd(w http.ResponseWriter) error {
 	_, err := w.Write([]byte("\n]"))
-	return err
+	return fmt.Errorf("write: %w", err)
 }
 
 func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {

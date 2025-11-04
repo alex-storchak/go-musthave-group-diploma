@@ -18,6 +18,7 @@ var (
 	ErrAccrualResponseNil = errors.New("accrual response is nil")
 	ErrOrderNumberNil     = errors.New("order number is empty")
 	ErrValidation         = errors.New("validation error")
+	ErrStreamingSupported = errors.New("streaming is not supported")
 )
 
 func ErrorValidateJSONResponse(w http.ResponseWriter, messages map[string]map[string]string, code int) {
