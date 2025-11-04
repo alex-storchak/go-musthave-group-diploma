@@ -23,8 +23,7 @@ type Gophermart interface {
 	GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error)
 }
 
-//nolint:cyclop // все понятно
-//nolint:gocognit // все понятно
+//nolint:cyclop,gocognit // Сложность оправдана
 func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
