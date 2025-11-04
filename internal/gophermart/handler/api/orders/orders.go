@@ -105,7 +105,7 @@ func writeJSONArrayStart(w http.ResponseWriter) error {
 	return fmt.Errorf("write: %w", err)
 }
 
-// nolint:gocognit // все понятно
+//nolint:gocognit // все понятно
 func streamOrders(
 	w http.ResponseWriter,
 	ordersChan <-chan models.IndexOrderResponse,
