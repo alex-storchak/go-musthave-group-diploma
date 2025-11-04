@@ -23,21 +23,27 @@ type Gophermart interface {
 	GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error)
 }
 
+//nolint:gocognit // все понятно
 func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
+		// Получаем ID пользователя из контекста
 		userID, err := utils.GetCtxUserID(r.Context())
 		if err != nil {
-			sendUnauthorized(w, logger)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		indexOrder := models.IndexOrder{UserID: userID}
 
-		count, err := fetchOrderCount(r.Context(), gophermart, indexOrder, logger)
+		ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+		defer cancel()
+
+		count, err := gophermart.CountOrder(ctx, indexOrder)
 		if err != nil {
-			sendInternalError(w, logger)
+			logger.Error("count order", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -46,114 +52,65 @@ func Index(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
 			return
 		}
 
-		ordersChan, errChan := gophermart.IndexOrder(r.Context(), indexOrder)
+		ordersChan, errChan := gophermart.IndexOrder(ctx, indexOrder)
 
-		if !isStreamingSupported(w, logger) {
-			sendInternalError(w, logger)
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			logger.Error("streaming not supported")
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		if err := writeJSONArrayStart(w); err != nil {
+		_, err = w.Write([]byte("[\n"))
+		if err != nil {
 			logger.Error("error writing start of json array", zap.Error(err))
 			return
 		}
 
-		if err := streamOrders(w, ordersChan, errChan, r.Context(), logger); err != nil {
-			logger.Error("streaming failed", zap.Error(err))
-		}
-	}
-}
+		encoder := json.NewEncoder(w)
+		isFirst := true
 
-func sendUnauthorized(w http.ResponseWriter, logger *zap.Logger) {
-	w.WriteHeader(http.StatusUnauthorized)
-	logger.Info("unauthorized access")
-}
-
-func sendInternalError(w http.ResponseWriter, logger *zap.Logger) {
-	w.WriteHeader(http.StatusInternalServerError)
-	logger.Error("internal server error")
-}
-
-func fetchOrderCount(
-	ctx context.Context,
-	gophermart Gophermart,
-	indexOrder models.IndexOrder,
-	logger *zap.Logger,
-) (int64, error) {
-	ctx, cancel := context.WithTimeout(ctx, defaultCtxTimeout)
-	defer cancel()
-
-	count, err := gophermart.CountOrder(ctx, indexOrder)
-	if err != nil {
-		logger.Error("count order", zap.Error(err))
-		return 0, fmt.Errorf("count order: %w", err)
-	}
-	return count, nil
-}
-
-func isStreamingSupported(w http.ResponseWriter, logger *zap.Logger) bool {
-	_, ok := w.(http.Flusher)
-	if !ok {
-		logger.Error("streaming not supported")
-		return false
-	}
-	return true
-}
-
-func writeJSONArrayStart(w http.ResponseWriter) error {
-	_, err := w.Write([]byte("[\n"))
-	return fmt.Errorf("write: %w", err)
-}
-
-//nolint:gocognit // все понятно
-func streamOrders(
-	w http.ResponseWriter,
-	ordersChan <-chan models.IndexOrderResponse,
-	errChan <-chan error,
-	ctx context.Context,
-	logger *zap.Logger,
-) error {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		return fmt.Errorf("streaming: %w", myerrors.ErrStreamingSupported)
-	}
-	encoder := json.NewEncoder(w)
-	isFirst := true
-
-	for {
-		select {
-		case order, ok := <-ordersChan:
-			if !ok {
-				return writeJSONArrayEnd(w)
-			}
-
-			if !isFirst {
-				if _, err := w.Write([]byte(",\n")); err != nil {
-					return fmt.Errorf("write: %w", err)
+		for {
+			select {
+			case order, ok := <-ordersChan:
+				if !ok {
+					if _, err = w.Write([]byte("\n]")); err != nil {
+						logger.Error("error writing end of json array", zap.Error(err))
+					}
+					return
 				}
+
+				if !isFirst {
+					if _, err = w.Write([]byte(",\n")); err != nil {
+						logger.Error("error writing comma", zap.Error(err))
+						return
+					}
+				}
+				isFirst = false
+
+				if err = encoder.Encode(order); err != nil {
+					logger.Error("error encoding order", zap.Error(err))
+					return
+				}
+
+				flusher.Flush()
+
+			case err = <-errChan:
+				logger.Error("stream error", zap.Error(err))
+				if _, err = w.Write([]byte("\n]")); err != nil {
+					logger.Error("error writing end of json array", zap.Error(err))
+				}
+				return
+
+			case <-ctx.Done():
+				logger.Info("request context cancelled")
+				if _, err = w.Write([]byte("\n]")); err != nil {
+					logger.Error("error writing end of json array", zap.Error(err))
+				}
+				return
 			}
-			isFirst = false
-
-			if err := encoder.Encode(order); err != nil {
-				return fmt.Errorf("encode: %w", err)
-			}
-
-			flusher.Flush()
-
-		case err := <-errChan:
-			logger.Error("stream error", zap.Error(err))
-			return writeJSONArrayEnd(w)
-
-		case <-ctx.Done():
-			logger.Info("request context canceled")
-			return writeJSONArrayEnd(w)
 		}
 	}
-}
-
-func writeJSONArrayEnd(w http.ResponseWriter) error {
-	_, err := w.Write([]byte("\n]"))
-	return fmt.Errorf("write: %w", err)
 }
 
 func Store(logger *zap.Logger, gophermart Gophermart) http.HandlerFunc {
