@@ -8,6 +8,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const (
+	StatusRegistered = "REGISTERED"
+	StatusProcessing = "PROCESSING"
+	StatusProcessed  = "PROCESSED"
+	StatusInvalid    = "INVALID"
+)
+
 var ErrScanGoods = errors.New("cannot scan Goods")
 
 type Good struct {

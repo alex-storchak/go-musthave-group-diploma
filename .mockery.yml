@@ -15,6 +15,8 @@ packages:
   github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/handler:
     interfaces:
       RuleRegisterer:
+      OrderRegisterer:
+      OrderInformer:
   github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker:
     interfaces:
       RulesProvider:

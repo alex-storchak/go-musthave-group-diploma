@@ -77,7 +77,7 @@ func handleRewardRule(l *zap.Logger, reg RuleRegisterer, inv worker.RulesProvide
 			l.Error("prepare model RewardRule for register", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-		if err := reg.RegisterRule(context.Background(), preparedRule); err != nil {
+		if err := reg.RegisterRule(r.Context(), preparedRule); err != nil {
 			if errors.Is(err, service.ErrRuleAlreadyRegistered) {
 				w.WriteHeader(http.StatusConflict)
 				return

@@ -20,7 +20,7 @@ func handleOrderNumber(logger *zap.Logger, inf OrderInformer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		orderNum := chi.URLParam(r, OrderNumberParam)
 
-		order, err := inf.InformOrder(context.Background(), orderNum)
+		order, err := inf.InformOrder(r.Context(), orderNum)
 		if err != nil {
 			if errors.Is(err, repository.ErrOrderNotFound) {
 				w.WriteHeader(http.StatusNoContent)
