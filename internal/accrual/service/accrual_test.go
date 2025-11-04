@@ -82,8 +82,6 @@ func TestAccrual_RegisterOrder(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-
-			mockOrdersRepo.AssertExpectations(t)
 		})
 	}
 }
@@ -156,8 +154,6 @@ func TestAccrual_RegisterRule(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-
-			mockRulesRepo.AssertExpectations(t)
 		})
 	}
 }
@@ -222,8 +218,6 @@ func TestAccrual_InformOrder(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedOrder, order)
 			}
-
-			mockOrdersRepo.AssertExpectations(t)
 		})
 	}
 }
@@ -405,7 +399,4 @@ func TestAccrual_Close(t *testing.T) {
 	mockRulesRepo.EXPECT().Close().Once()
 
 	accrualService.Close()
-
-	mockOrdersRepo.AssertExpectations(t)
-	mockRulesRepo.AssertExpectations(t)
 }

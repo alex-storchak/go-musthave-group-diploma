@@ -166,8 +166,6 @@ func TestHandleOrderNumber(t *testing.T) {
 			} else if tt.expectedStatus == http.StatusNoContent {
 				assert.Empty(t, w.Body.Bytes())
 			}
-
-			mockInf.AssertExpectations(t)
 		})
 	}
 }

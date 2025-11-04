@@ -40,8 +40,6 @@ func TestHandleRewardRule_Success(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusOK, w.Code)
-	mockRegisterer.AssertExpectations(t)
-	mockProvider.AssertExpectations(t)
 }
 
 func TestHandleRewardRule_ValidationError(t *testing.T) {
@@ -88,7 +86,6 @@ func TestHandleRewardRule_Conflict(t *testing.T) {
 
 	// Assert
 	assert.Equal(t, http.StatusConflict, w.Code)
-	mockRegisterer.AssertExpectations(t)
 	mockProvider.AssertNotCalled(t, "MarkDirty")
 }
 

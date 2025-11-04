@@ -245,7 +245,6 @@ func TestHandleOrders(t *testing.T) {
 
 			// Assert
 			assert.Equal(t, tt.expectedStatus, w.Code, tt.description)
-			mockReg.AssertExpectations(t)
 		})
 	}
 }
