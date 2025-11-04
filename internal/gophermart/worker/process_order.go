@@ -67,9 +67,6 @@ func (f *ProcessOrder) FindUnprocessedOrder() (*models.OrderProcess, bool) {
 }
 
 func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
-	var order *models.OrderProcess
-	var found bool
-
 	done := make(chan struct{}, maxConcurrent)
 	errCh := make(chan error, maxConcurrent)
 
@@ -99,30 +96,7 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 				}
 
 			case <-done:
-				ticker := time.NewTicker(100 * time.Millisecond) // проверять каждые 500 мс
-				defer ticker.Stop()
-
-				for {
-					select {
-					case <-ctx.Done():
-						f.logger.Info("stop search order")
-						return
-					case <-ticker.C:
-						order, found = f.FindUnprocessedOrder()
-						if found {
-							break // нашли заказ — выходим из цикла ожидания
-						}
-						// продолжаем ждать
-						f.logger.Info("waiting for new orders...")
-					}
-					if found {
-						break
-					}
-				}
-
-				ticker.Stop()
-
-				go f.startAccrualWorker(ctx, order, done, errCh)
+				f.doneProcessing(ctx, done, errCh)
 			}
 		}
 	}()
@@ -130,6 +104,39 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 	for i := 0; i < maxConcurrent; i++ {
 		done <- struct{}{}
 	}
+}
+
+func (f *ProcessOrder) doneProcessing(
+	ctx context.Context,
+	done chan<- struct{},
+	errCh chan<- error,
+) {
+	var order *models.OrderProcess
+	var found bool
+	ticker := time.NewTicker(100 * time.Millisecond) // проверять каждые 500 мс
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			f.logger.Info("stop search order")
+			return
+		case <-ticker.C:
+			order, found = f.FindUnprocessedOrder()
+			if found {
+				break // нашли заказ — выходим из цикла ожидания
+			}
+			// продолжаем ждать
+			f.logger.Info("waiting for new orders...")
+		}
+		if found {
+			break
+		}
+	}
+
+	ticker.Stop()
+
+	go f.startAccrualWorker(ctx, order, done, errCh)
 }
 
 func (f *ProcessOrder) startAccrualWorker(

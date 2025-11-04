@@ -317,65 +317,82 @@ func (st *Store) CountOrder(ctx context.Context, indexOrder models.IndexOrder) (
 	return count, nil
 }
 
-func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error) {
+func (st *Store) IndexOrder(
+	ctx context.Context,
+	indexOrder models.IndexOrder,
+) (<-chan models.IndexOrderResponse, <-chan error) {
+	const chunkSize = 1000
+
 	ordersChan := make(chan models.IndexOrderResponse)
-	errorChan := make(chan error, 1)
-	chunkSize := 1000
-	var lastUploadedAt *time.Time
+	errorChan := make(chan error, 1) // буфер для одной ошибки
 
 	go func() {
 		defer close(ordersChan)
 		defer close(errorChan)
 
+		var lastUploadedAt *time.Time
+
 		for {
-			select {
-			case <-ctx.Done():
+			// Проверка отмены контекста перед запросом
+			if ctx.Err() != nil {
 				return
-			default:
-				var orders []models.IndexOrderResponse
-				var query *gorm.DB
+			}
 
-				if lastUploadedAt == nil {
-					query = st.conn.
-						WithContext(ctx).
-						Table("orders").
-						Where("user_id = ?", indexOrder.UserID).
-						Order("uploaded_at asc")
-				} else {
-					query = st.conn.
-						WithContext(ctx).
-						Table("orders").
-						Where("user_id = ?", indexOrder.UserID).
-						Where("uploaded_at > ?", *lastUploadedAt).
-						Order("uploaded_at asc")
+			orders, err := st.fetchChunk(ctx, indexOrder.UserID, lastUploadedAt, chunkSize)
+			if err != nil {
+				select {
+				case errorChan <- err:
+				case <-ctx.Done():
 				}
+				return
+			}
 
-				result := query.
-					Limit(chunkSize).
-					Find(&orders)
+			// Если данных нет — завершаем
+			if len(orders) == 0 {
+				return
+			}
 
-				if result.Error != nil {
-					errorChan <- result.Error
+			// Отправка заказов в канал
+			for _, order := range orders {
+				select {
+				case <-ctx.Done():
 					return
-				}
-
-				if len(orders) == 0 {
-					return
-				}
-
-				for _, order := range orders {
-					select {
-					case <-ctx.Done():
-						return
-					case ordersChan <- order:
-						lastUploadedAt = order.UploadedAt
-					}
+				case ordersChan <- order:
+					lastUploadedAt = order.UploadedAt
 				}
 			}
 		}
 	}()
 
 	return ordersChan, errorChan
+}
+
+func (st *Store) fetchChunk(
+	ctx context.Context,
+	userID models.UserID,
+	lastUploadedAt *time.Time,
+	limit int,
+) ([]models.IndexOrderResponse, error) {
+	query := st.conn.
+		WithContext(ctx).
+		Table("orders").
+		Where("user_id = ?", userID).
+		Order("uploaded_at asc").
+		Limit(limit)
+
+	// Дополнительное условие по времени, если есть lastUploadedAt
+	if lastUploadedAt != nil {
+		query = query.Where("uploaded_at > ?", *lastUploadedAt)
+	}
+
+	var orders []models.IndexOrderResponse
+	result := query.Find(&orders)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return orders, nil
 }
 
 func (st *Store) GetBalance(ctx context.Context, getBalance models.GetBalanceRequest) (*models.ShowBalanceResponse, error) {
