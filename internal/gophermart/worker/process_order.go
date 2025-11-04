@@ -113,28 +113,23 @@ func (f *ProcessOrder) doneProcessing(
 ) {
 	var order *models.OrderProcess
 	var found bool
-	ticker := time.NewTicker(100 * time.Millisecond) // проверять каждые 500 мс
-	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			f.logger.Info("stop search order")
 			return
-		case <-ticker.C:
+		default:
 			order, found = f.FindUnprocessedOrder()
 			if found {
-				break // нашли заказ — выходим из цикла ожидания
+				break
 			}
-			// продолжаем ждать
-			f.logger.Info("waiting for new orders...")
+			time.Sleep(50 * time.Millisecond)
 		}
 		if found {
 			break
 		}
 	}
-
-	ticker.Stop()
 
 	go f.startAccrualWorker(ctx, order, done, errCh)
 }
@@ -217,6 +212,7 @@ func (f *ProcessOrder) GetOrders(ctx context.Context) {
 		f.logger.Error("get new orders", zap.Error(err))
 		return
 	}
-
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.orders = append(f.orders, newOrder...)
 }
