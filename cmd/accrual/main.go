@@ -59,7 +59,7 @@ func run(
 	accrual := service.NewAccrual(orders, rules, zl)
 	defer accrual.Close()
 
-	accrualPool := worker.NewAccrualPool(accrual, orders, rulesProvider, &cfg.Accrual, zl)
+	accrualPool := worker.NewAccrualPool(accrual, orders, rulesProvider, &cfg.Accrual, zl, nil)
 	defer accrualPool.Close()
 	accrualPool.Start(ctx)
 

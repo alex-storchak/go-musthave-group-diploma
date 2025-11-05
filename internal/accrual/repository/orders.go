@@ -12,13 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	StatusRegistered = "REGISTERED"
-	StatusProcessing = "PROCESSING"
-	StatusProcessed  = "PROCESSED"
-	StatusInvalid    = "INVALID"
-)
-
 var ErrOrderNotFound = errors.New("order not found")
 
 func NewPgOrders(pool *pgxpool.Pool, l *zap.Logger) *PgOrders {
@@ -53,7 +46,7 @@ func (p *PgOrders) Add(ctx context.Context, order *model.Order) error {
 	}()
 
 	var orderID int64
-	err = tx.QueryRow(ctx, qOrders, order.Number, StatusRegistered).Scan(&orderID)
+	err = tx.QueryRow(ctx, qOrders, order.Number, model.StatusRegistered).Scan(&orderID)
 	if err != nil {
 		return fmt.Errorf("insert order (%s) and scan returning order id: %w", order.Number, err)
 	}
@@ -150,7 +143,7 @@ func (p *PgOrders) GetBatchForProcessing(ctx context.Context, batchSize int) ([]
 		}
 	}()
 
-	rows, err := tx.Query(ctx, q, batchSize, StatusRegistered, StatusProcessing)
+	rows, err := tx.Query(ctx, q, batchSize, model.StatusRegistered, model.StatusProcessing)
 	if err != nil {
 		return nil, fmt.Errorf("query order batch with goods for update: %w", err)
 	}
@@ -227,7 +220,7 @@ func (p *PgOrders) ResetStuckOrders(ctx context.Context, timeout time.Duration, 
 
 	timeoutSeconds := int64(timeout.Seconds())
 
-	rows, err := tx.Query(ctx, q, StatusRegistered, StatusProcessing, timeoutSeconds, batchLimit)
+	rows, err := tx.Query(ctx, q, model.StatusRegistered, model.StatusProcessing, timeoutSeconds, batchLimit)
 	if err != nil {
 		return 0, fmt.Errorf("query stuck orders for reset: %w", err)
 	}

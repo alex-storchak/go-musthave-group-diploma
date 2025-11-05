@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/repository"
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.uber.org/zap"
 )
@@ -93,12 +92,12 @@ func (a *Accrual) ProcessOrder(order *model.Order, rules []model.RewardRule) {
 
 	if totalAccrual == 0 {
 		a.logger.Info("no accrual for order", zap.String("order_number", order.Number))
-		order.Status = repository.StatusInvalid
+		order.Status = model.StatusInvalid
 		return
 	}
 
 	order.Accrual = totalAccrual
-	order.Status = repository.StatusProcessed
+	order.Status = model.StatusProcessed
 }
 
 func (a *Accrual) calculateGoodAccrual(
