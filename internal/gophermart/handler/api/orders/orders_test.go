@@ -165,7 +165,6 @@ func TestStore_StoreError_Conflict(t *testing.T) {
 	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
-	// Ошибка конфликта — статус должен быть 200 (по логике вашего приложения)
 	gophermart.On("StoreOrder", mock.Anything, mock.AnythingOfType("models.StoreOrder")).
 		Return(myerrors.ErrConflictNumber)
 
@@ -184,7 +183,7 @@ func TestStore_StoreError_Conflict(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code) // Предполагаем, что при конфликте возвращается 200
+	assert.Equal(t, http.StatusOK, w.Code)
 	gophermart.AssertExpectations(t)
 }
 
@@ -193,7 +192,6 @@ func TestStore_StoreError_Conflict2(t *testing.T) {
 	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
-	// Ошибка конфликта — статус должен быть 200 (по логике вашего приложения)
 	gophermart.On("StoreOrder", mock.Anything, mock.AnythingOfType("models.StoreOrder")).
 		Return(myerrors.ErrConflictNumber)
 
@@ -212,6 +210,6 @@ func TestStore_StoreError_Conflict2(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	assert.Equal(t, http.StatusConflict, w.Code) // Предполагаем, что при конфликте возвращается 200
+	assert.Equal(t, http.StatusConflict, w.Code)
 	gophermart.AssertExpectations(t)
 }

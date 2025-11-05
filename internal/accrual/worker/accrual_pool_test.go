@@ -160,7 +160,6 @@ func TestAccrualPool_ResetStuckOrders_DeterministicTicks(t *testing.T) {
 	cfg := testAccrualCfg()
 	logger := zap.NewNop()
 
-	// Фейковый тикер и фабрика
 	ft := ticker.NewFakeTicker()
 	tf := &ticker.FakeTickerFactory{T: ft}
 
@@ -301,7 +300,6 @@ func TestAccrualPool_Integration_ConcurrentProcessing_Expecter(t *testing.T) {
 		Return(nil).
 		Times(len(orders))
 
-	// 6) Сброс «зависших» — может вызываться 0+ раз
 	orderRepo.
 		EXPECT().
 		ResetStuckOrders(mock.Anything, cfg.StuckOrderTimeout, cfg.StuckOrderBatchLimit).
