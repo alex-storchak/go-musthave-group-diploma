@@ -101,9 +101,9 @@ func (p *CacheRulesProvider) updateCache(rules []model.RewardRule) {
 func (p *CacheRulesProvider) All(ctx context.Context) ([]model.RewardRule, error) {
 	p.cacheMu.Lock()
 	dirty := p.cacheDirty.Load()
-	cachedPtr := p.cache.Load()
-	if !dirty && cachedPtr != nil && len(*cachedPtr) > 0 {
-		rules := *cachedPtr
+	cachePtr := p.cache.Load()
+	if !dirty && cachePtr != nil && len(*cachePtr) > 0 {
+		rules := *cachePtr
 		p.cacheMu.Unlock()
 		return rules, nil
 	}
@@ -111,16 +111,15 @@ func (p *CacheRulesProvider) All(ctx context.Context) ([]model.RewardRule, error
 
 	rulesFromRepo, err := p.ensureFreshRules(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("get all rules from repo: %w", err)
+		return nil, fmt.Errorf("ensure fresh rules: %w", err)
 	}
 	return rulesFromRepo, nil
-
 }
 
 func (p *CacheRulesProvider) ensureFreshRules(ctx context.Context) ([]model.RewardRule, error) {
 	rulesFromRepo, err := p.repo.All(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get all rules from repo: %w", err)
 	}
 
 	p.cacheMu.Lock()

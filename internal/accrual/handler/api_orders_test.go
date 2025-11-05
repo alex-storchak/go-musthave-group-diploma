@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/handler/mocks"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/service"
@@ -14,8 +13,6 @@ import (
 	"strings"
 	"testing"
 )
-
-var errInternalServerError = errors.New("internal server error")
 
 func TestReqOrder_Valid(t *testing.T) {
 	tests := []struct {
@@ -205,7 +202,7 @@ func TestHandleOrders(t *testing.T) {
 			setupMock: func(m *mocks.MockOrderRegisterer) {
 				m.EXPECT().
 					RegisterOrder(mock.Anything, mock.AnythingOfType("*model.Order")).
-					Return(errInternalServerError).
+					Return(assert.AnError).
 					Once()
 			},
 			expectedStatus: http.StatusInternalServerError,
@@ -245,7 +242,6 @@ func TestHandleOrders(t *testing.T) {
 
 			// Assert
 			assert.Equal(t, tt.expectedStatus, w.Code, tt.description)
-			mockReg.AssertExpectations(t)
 		})
 	}
 }

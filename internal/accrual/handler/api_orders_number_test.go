@@ -65,7 +65,7 @@ func TestHandleOrderNumber(t *testing.T) {
 			setupMock: func(m *mocks.MockOrderInformer) {
 				m.EXPECT().
 					InformOrder(mock.Anything, "4561261212345467").
-					Return(nil, errInternalServerError).
+					Return(nil, assert.AnError).
 					Once()
 			},
 			expectedStatus: http.StatusInternalServerError,
@@ -166,8 +166,6 @@ func TestHandleOrderNumber(t *testing.T) {
 			} else if tt.expectedStatus == http.StatusNoContent {
 				assert.Empty(t, w.Body.Bytes())
 			}
-
-			mockInf.AssertExpectations(t)
 		})
 	}
 }
