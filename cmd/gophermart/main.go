@@ -7,6 +7,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/db"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/logging"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/pg"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/gophermart"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/worker"
@@ -57,7 +58,11 @@ func run(ctx context.Context, args []string) error {
 		return fmt.Errorf("failed to initialize service gophermart: %w", err)
 	}
 
-	auth := service.NewAuth(cfg.Handlers, conn)
+	userRepo := pg.NewPgUser(conn)
+	userProvider := service.NewAuthUser(userRepo)
+	tokenProvider := service.NewAuthToken(cfg.Handlers)
+	auth := service.NewAuth(userProvider, tokenProvider)
+
 	router := handler.NewRouter(zl, cfg.Handlers, gmart, auth)
 
 	processOrder, err := worker.NewProcessOrder(conn, cfg, zl)
