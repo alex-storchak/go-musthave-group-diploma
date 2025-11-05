@@ -1,13 +1,13 @@
 package worker
 
 import (
-	"context"
 	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	accrualconfig "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/worker/mocks"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gotest.tools/v3/assert"
@@ -28,7 +28,8 @@ func TestNewProcessOrder(t *testing.T) {
 		},
 	}
 
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 
 	mockRepo := mocks.NewMockRepository(t)
 	po, err := NewProcessOrder(db, cfg, logger, mockRepo)
@@ -44,7 +45,8 @@ func TestNewProcessOrder(t *testing.T) {
 }
 
 func TestGetOrders(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 
 	mockRepo := mocks.NewMockRepository(t)
 
@@ -60,7 +62,7 @@ func TestGetOrders(t *testing.T) {
 		mu:     &sync.RWMutex{},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	po.GetOrders(ctx)
 
 	assert.Equal(t, 1, len(po.orders))
@@ -68,7 +70,8 @@ func TestGetOrders(t *testing.T) {
 }
 
 func TestGetOrders_RepoError(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 
 	mockRepo := mocks.NewMockRepository(t)
 
@@ -83,7 +86,7 @@ func TestGetOrders_RepoError(t *testing.T) {
 		mu:     &sync.RWMutex{},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 	po.GetOrders(ctx)
 
 	// Проверяем, что orders остались пустыми
@@ -116,7 +119,8 @@ func TestFindUnprocessedOrder(t *testing.T) {
 }
 
 func TestStartAccrualWorker_Success(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	mockRepo := mocks.NewMockRepository(t)
 	mockAccrual := mocks.NewMockAccrual(t)
 
@@ -148,7 +152,7 @@ func TestStartAccrualWorker_Success(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		po.startAccrualWorker(context.Background(), &order, done, errCh)
+		po.startAccrualWorker(t.Context(), &order, done, errCh)
 	}()
 
 	select {
@@ -160,7 +164,8 @@ func TestStartAccrualWorker_Success(t *testing.T) {
 }
 
 func TestStartAccrualWorker_AccrualError(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	mockRepo := mocks.NewMockRepository(t)
 	mockAccrual := mocks.NewMockAccrual(t)
 
@@ -181,7 +186,7 @@ func TestStartAccrualWorker_AccrualError(t *testing.T) {
 	errCh := make(chan error, 1)
 
 	go func() {
-		po.startAccrualWorker(context.Background(), &order, done, errCh)
+		po.startAccrualWorker(t.Context(), &order, done, errCh)
 	}()
 
 	select {
@@ -193,7 +198,8 @@ func TestStartAccrualWorker_AccrualError(t *testing.T) {
 }
 
 func TestStartAccrualWorker_InvalidStatus(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	mockRepo := mocks.NewMockRepository(t)
 	mockAccrual := mocks.NewMockAccrual(t)
 
@@ -225,7 +231,7 @@ func TestStartAccrualWorker_InvalidStatus(t *testing.T) {
 
 	// 3. Запускаем worker в горутине
 	go func() {
-		po.startAccrualWorker(context.Background(), &order, done, errCh)
+		po.startAccrualWorker(t.Context(), &order, done, errCh)
 	}()
 
 	// 4. Ждём либо сигнала завершения, либо ошибки

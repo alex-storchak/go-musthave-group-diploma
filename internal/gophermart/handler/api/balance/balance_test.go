@@ -6,6 +6,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,8 @@ import (
 )
 
 func TestShow_Success(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &balancemocks.MockGophermart{}
 
 	expectedBalance := &models.ShowBalanceResponse{
@@ -38,7 +40,8 @@ func TestShow_Success(t *testing.T) {
 }
 
 func TestShow_Unauthorized_NoUserID(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &balancemocks.MockGophermart{}
 
 	handler := Show(logger, gophermart)

@@ -6,6 +6,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,8 @@ import (
 )
 
 func TestIndex_Success(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &withdrawalmocks.MockGophermart{}
 
 	gophermart.On("CountWithdrawal", mock.Anything, models.IndexWithdrawal{UserID: models.UserID(1)}).
@@ -51,7 +53,8 @@ func TestIndex_Success(t *testing.T) {
 }
 
 func TestIndex_Unauthorized_NoUserID(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &withdrawalmocks.MockGophermart{}
 
 	handler := Index(logger, gophermart)
@@ -68,7 +71,8 @@ func TestIndex_Unauthorized_NoUserID(t *testing.T) {
 }
 
 func TestIndex_NoContent_ZeroCount(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &withdrawalmocks.MockGophermart{}
 
 	// CountWithdrawal → 0 записей

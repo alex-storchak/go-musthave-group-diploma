@@ -7,6 +7,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
@@ -16,7 +17,8 @@ import (
 )
 
 func TestIndex_Unauthorized(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	req := httptest.NewRequest(http.MethodGet, "/user/orders", nil)
@@ -31,7 +33,8 @@ func TestIndex_Unauthorized(t *testing.T) {
 }
 
 func TestIndex_NoContent(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	gophermart.On("CountOrder", mock.Anything, models.IndexOrder{UserID: models.UserID(1)}).
@@ -52,7 +55,8 @@ func TestIndex_NoContent(t *testing.T) {
 }
 
 func TestIndex_StreamSuccess(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	gophermart.On("CountOrder", mock.Anything, models.IndexOrder{UserID: models.UserID(1)}).
@@ -97,7 +101,8 @@ func TestIndex_StreamSuccess(t *testing.T) {
 }
 
 func TestStore_Success(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	gophermart.On("StoreOrder", mock.Anything, mock.AnythingOfType("models.StoreOrder")).
@@ -117,7 +122,8 @@ func TestStore_Success(t *testing.T) {
 }
 
 func TestStore_Unauthorized(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	handler := Store(logger, gophermart)
@@ -133,7 +139,8 @@ func TestStore_Unauthorized(t *testing.T) {
 }
 
 func TestStore_ValidationError(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	// Мокируем ошибку валидации
@@ -154,7 +161,8 @@ func TestStore_ValidationError(t *testing.T) {
 }
 
 func TestStore_StoreError_Conflict(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	// Ошибка конфликта — статус должен быть 200 (по логике вашего приложения)
@@ -181,7 +189,8 @@ func TestStore_StoreError_Conflict(t *testing.T) {
 }
 
 func TestStore_StoreError_Conflict2(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err, "failed to create zap logger: %v", err)
 	gophermart := &ordersmocks.MockGophermart{}
 
 	// Ошибка конфликта — статус должен быть 200 (по логике вашего приложения)
