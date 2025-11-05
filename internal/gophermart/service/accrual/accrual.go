@@ -38,6 +38,13 @@ func newErrorRequest(code int) error {
 	return fmt.Errorf("%w status %d", myerrors.ErrAccrual, code)
 }
 
+func (c *Accrual) GetRetryAfter() time.Duration {
+	return c.RetryAfter
+}
+func (c *Accrual) SetRetryAfter(t time.Duration) {
+	c.RetryAfter = t
+}
+
 func (c *Accrual) Get(ctx context.Context, order models.OrderProcess) (*models.AccrualResponse, error) {
 
 	if c.RetryAfter > 0 {

@@ -21,18 +21,30 @@ const (
 	getOrdersTickerDuration = 500 * time.Millisecond
 )
 
+type Accrual interface {
+	Get(ctx context.Context, order models.OrderProcess) (*models.AccrualResponse, error)
+	GetRetryAfter() time.Duration
+	SetRetryAfter(t time.Duration)
+}
+
 type ProcessOrder struct {
 	mu      *sync.RWMutex
 	store   repository.Repository
-	accrual *accrual.Accrual
+	accrual Accrual
 	logger  *zap.Logger
 	orders  []models.OrderProcess
 }
 
-func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger) (*ProcessOrder, error) {
-	store, err := NewRepository(conn)
-	if err != nil {
-		return nil, fmt.Errorf("no init repository: %w", err)
+func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt ...repository.Repository) (*ProcessOrder, error) {
+	var store repository.Repository
+	var err error
+	if len(repoOpt) > 0 && repoOpt[0] != nil {
+		store = repoOpt[0]
+	} else {
+		store, err = NewRepository(conn)
+		if err != nil {
+			return nil, fmt.Errorf("no init repository: %w", err)
+		}
 	}
 
 	acc := accrual.New(cfg.Accrual)
@@ -84,14 +96,14 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 
 			case err := <-errCh:
 				f.logger.Error("error accrual processing", zap.Error(err))
-				if f.accrual.RetryAfter > 0 {
+				if f.accrual.GetRetryAfter() > 0 {
 					// Останавливаем текущий таймер, если есть
 					if pauseTimer != nil {
 						pauseTimer.Stop()
 					}
 					// Запускаем новый таймер
-					pauseTimer = time.AfterFunc(f.accrual.RetryAfter, func() {
-						f.accrual.RetryAfter = 0
+					pauseTimer = time.AfterFunc(f.accrual.GetRetryAfter(), func() {
+						f.accrual.SetRetryAfter(0)
 						f.logger.Info("pause processing accrual ended")
 					})
 				}

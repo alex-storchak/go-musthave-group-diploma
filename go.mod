@@ -15,6 +15,7 @@ require (
 	golang.org/x/crypto v0.37.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.0
+	gotest.tools/v3 v3.5.2
 )
 
 require (
@@ -32,6 +33,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
