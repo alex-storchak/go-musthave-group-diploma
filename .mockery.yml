@@ -18,3 +18,16 @@ packages:
   github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker:
     interfaces:
       RulesProvider:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/orders:
+    interfaces:
+      Gophermart:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/balance:
+    interfaces:
+      Gophermart:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/balance/withdrawals:
+    interfaces:
+      Gophermart:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/worker:
+    interfaces:
+      Repository:
+      Accrual:

@@ -5,7 +5,6 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/balance"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/balance/withdrawals"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/orders"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/ping"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
 	mw "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service"
@@ -26,8 +25,6 @@ func addRoutes(
 	mux.Use(middleware.Compress(cfg.CompressLevel))
 
 	mux.Route("/api", func(mux chi.Router) {
-		mux.Get("/ping", ping.Ping(logger, g))
-
 		mux.Route("/user", func(mux chi.Router) {
 			mux.Post("/register", handlerauth.HandleRegister(cfg, logger, auth))
 			mux.Post("/login", handlerauth.HandleLogin(cfg, logger, auth))
