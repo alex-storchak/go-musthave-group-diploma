@@ -151,8 +151,12 @@ func assertTestHandleRegister(
 	cfg *config.Config,
 ) {
 	assert.Equal(t, tt.expectedStatus, rr.Code)
+
+	resp := rr.Result()
+	defer resp.Body.Close()
+
 	if tt.expectCookie {
-		cookies := rr.Result().Cookies()
+		cookies := resp.Cookies()
 		authCookieFound := false
 		for _, cookie := range cookies {
 			if cookie.Name == cfg.AuthCookieName {
@@ -163,7 +167,7 @@ func assertTestHandleRegister(
 		}
 		assert.True(t, authCookieFound)
 	} else {
-		cookies := rr.Result().Cookies()
+		cookies := resp.Cookies()
 		authCookieFound := false
 		for _, cookie := range cookies {
 			if cookie.Name == cfg.AuthCookieName {
