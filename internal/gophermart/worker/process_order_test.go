@@ -1,9 +1,9 @@
 package worker
 
 import (
-	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
 	accrualconfig "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/worker/mocks"
 	"github.com/stretchr/testify/mock"
@@ -77,7 +77,7 @@ func TestGetOrders_RepoError(t *testing.T) {
 
 	mockRepo.EXPECT().
 		GetNewOrders(mock.Anything, mock.Anything).
-		Return(nil, errors.New("repo error"))
+		Return(nil, myerrors.ErrRepoError)
 
 	po := &ProcessOrder{
 		store:  mockRepo,
@@ -173,7 +173,7 @@ func TestStartAccrualWorker_AccrualError(t *testing.T) {
 
 	mockAccrual.EXPECT().
 		Get(mock.Anything, order).
-		Return(nil, errors.New("accrual error"))
+		Return(nil, myerrors.ErrAccrual)
 
 	po := &ProcessOrder{
 		store:   mockRepo,
