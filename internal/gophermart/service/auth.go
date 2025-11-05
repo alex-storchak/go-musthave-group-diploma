@@ -3,25 +3,29 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
-	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/pg"
-	"gorm.io/gorm"
 )
 
-type Auth struct {
-	user  *AuthUser
-	token *AuthToken
+type AuthTokenProvider interface {
+	Generate(userID models.UserID) (string, error)
+	Parse(tokenString string) (models.UserID, error)
 }
 
-func NewAuth(cfg *config.Config, conn *gorm.DB) *Auth {
-	userRepo := pg.NewPgUser(conn)
-	userService := NewAuthUser(userRepo)
-	tokenService := NewAuthToken(cfg)
+type AuthUserProvider interface {
+	Create(ctx context.Context, login, password string) (*models.User, error)
+	Authenticate(ctx context.Context, login, password string) (*models.User, error)
+	GetByID(ctx context.Context, userID models.UserID) (*models.User, error)
+}
 
+type Auth struct {
+	user  AuthUserProvider
+	token AuthTokenProvider
+}
+
+func NewAuth(u AuthUserProvider, t AuthTokenProvider) *Auth {
 	return &Auth{
-		user:  userService,
-		token: tokenService,
+		user:  u,
+		token: t,
 	}
 }
 

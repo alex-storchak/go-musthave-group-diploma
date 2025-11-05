@@ -34,3 +34,8 @@ packages:
   github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware:
     interfaces:
       AuthUserValidator:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service:
+    interfaces:
+      UserRepository:
+      AuthTokenProvider:
+      AuthUserProvider:
