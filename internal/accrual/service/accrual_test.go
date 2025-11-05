@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/repository"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -13,8 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
-
-var errRandom = errors.New("random error")
 
 //nolint:dupl // order and rule are different entities with possible registration logic
 func TestAccrual_RegisterOrder(t *testing.T) {
@@ -41,15 +38,15 @@ func TestAccrual_RegisterOrder(t *testing.T) {
 		{
 			name:        "error checking order existence",
 			order:       &model.Order{Number: "12345"},
-			hasOrderErr: errRandom,
-			expectedErr: errRandom,
+			hasOrderErr: assert.AnError,
+			expectedErr: assert.AnError,
 		},
 		{
 			name:        "error adding order",
 			order:       &model.Order{Number: "12345"},
 			hasOrder:    false,
-			addOrderErr: errRandom,
-			expectedErr: errRandom,
+			addOrderErr: assert.AnError,
+			expectedErr: assert.AnError,
 		},
 	}
 
@@ -111,15 +108,15 @@ func TestAccrual_RegisterRule(t *testing.T) {
 		{
 			name:        "error checking rule existence",
 			rule:        &model.RewardRule{Match: "test"},
-			hasRuleErr:  errRandom,
-			expectedErr: errRandom,
+			hasRuleErr:  assert.AnError,
+			expectedErr: assert.AnError,
 		},
 		{
 			name:        "error adding rule",
 			rule:        &model.RewardRule{Match: "test"},
 			hasRule:     false,
-			addRuleErr:  errRandom,
-			expectedErr: errRandom,
+			addRuleErr:  assert.AnError,
+			expectedErr: assert.AnError,
 		},
 	}
 

@@ -27,3 +27,10 @@ packages:
   github.com/alex-storchak/go-musthave-group-diploma/internal/validator:
     interfaces:
       Validator:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/api/auth:
+    interfaces:
+      UserRegisterer:
+      UserLoginer:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/handler/middleware:
+    interfaces:
+      AuthUserValidator:
