@@ -3,12 +3,12 @@ package worker
 import (
 	"context"
 	"errors"
-	"sync"
-	"time"
-
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/model"
+	"github.com/alex-storchak/go-musthave-group-diploma/internal/ticker"
 	"go.uber.org/zap"
+	"sync"
+	"time"
 )
 
 type OrderProcessor interface {
@@ -28,15 +28,16 @@ type RulesProvider interface {
 }
 
 type AccrualPool struct {
-	processor OrderProcessor
-	orders    ProcessOrdersRepository
-	rules     RulesProvider
-	cfg       config.Accrual
-	jobChan   chan *model.Order
-	logger    *zap.Logger
-	wg        sync.WaitGroup
-	startOnce sync.Once
-	closeOnce sync.Once
+	processor     OrderProcessor
+	orders        ProcessOrdersRepository
+	rules         RulesProvider
+	tickerFactory ticker.Factory
+	cfg           config.Accrual
+	jobChan       chan *model.Order
+	logger        *zap.Logger
+	wg            sync.WaitGroup
+	startOnce     sync.Once
+	closeOnce     sync.Once
 }
 
 func NewAccrualPool(
@@ -45,14 +46,19 @@ func NewAccrualPool(
 	r RulesProvider,
 	cfg *config.Accrual,
 	l *zap.Logger,
+	tf ticker.Factory,
 ) *AccrualPool {
+	if tf == nil {
+		tf = ticker.RealTickerFactory{}
+	}
 	return &AccrualPool{
-		processor: p,
-		orders:    o,
-		rules:     r,
-		jobChan:   make(chan *model.Order, cfg.JobChanSize),
-		cfg:       *cfg,
-		logger:    l,
+		processor:     p,
+		orders:        o,
+		rules:         r,
+		tickerFactory: tf,
+		jobChan:       make(chan *model.Order, cfg.JobChanSize),
+		cfg:           *cfg,
+		logger:        l,
 	}
 }
 
@@ -83,8 +89,8 @@ func (p *AccrualPool) Start(ctx context.Context) {
 }
 
 func (p *AccrualPool) dispatcher(ctx context.Context) {
-	ticker := time.NewTicker(p.cfg.PollInterval)
-	defer ticker.Stop()
+	tick := time.NewTicker(p.cfg.PollInterval)
+	defer tick.Stop()
 
 	for {
 		select {
@@ -92,7 +98,7 @@ func (p *AccrualPool) dispatcher(ctx context.Context) {
 			p.logger.Info("accrual worker pool shutting down")
 			close(p.jobChan)
 			return
-		case <-ticker.C:
+		case <-tick.C:
 			p.dispatchBatch(ctx)
 		}
 	}
@@ -155,15 +161,15 @@ func (p *AccrualPool) updateOrderStatus(ctx context.Context, order *model.Order,
 }
 
 func (p *AccrualPool) stuckOrdersWorker(ctx context.Context) {
-	ticker := time.NewTicker(p.cfg.StuckOrderCheckInterval)
-	defer ticker.Stop()
+	tick := p.tickerFactory.New(p.cfg.StuckOrderCheckInterval)
+	defer tick.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			p.logger.Info("stuck orders worker shutting down")
 			return
-		case <-ticker.C:
+		case <-tick.C():
 			p.resetStuckOrders(ctx)
 		}
 	}
