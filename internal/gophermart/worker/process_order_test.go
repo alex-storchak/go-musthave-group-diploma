@@ -4,6 +4,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/myerrors"
+	repoMocks "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository/mocks"
 	accrualconfig "github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/worker/mocks"
 	"github.com/stretchr/testify/mock"
@@ -31,7 +32,7 @@ func TestNewProcessOrder(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err, "failed to create zap logger: %v", err)
 
-	mockRepo := mocks.NewMockRepository(t)
+	mockRepo := repoMocks.NewMockRepository(t)
 	po, err := NewProcessOrder(db, cfg, logger, mockRepo)
 
 	assert.NilError(t, err)
@@ -48,7 +49,7 @@ func TestGetOrders(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err, "failed to create zap logger: %v", err)
 
-	mockRepo := mocks.NewMockRepository(t)
+	mockRepo := repoMocks.NewMockRepository(t)
 
 	expectedOrders := []models.OrderProcess{{Number: "789"}}
 	mockRepo.EXPECT().
@@ -73,7 +74,7 @@ func TestGetOrders_RepoError(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err, "failed to create zap logger: %v", err)
 
-	mockRepo := mocks.NewMockRepository(t)
+	mockRepo := repoMocks.NewMockRepository(t)
 
 	mockRepo.EXPECT().
 		GetNewOrders(mock.Anything, mock.Anything).
@@ -121,7 +122,7 @@ func TestFindUnprocessedOrder(t *testing.T) {
 func TestStartAccrualWorker_Success(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err, "failed to create zap logger: %v", err)
-	mockRepo := mocks.NewMockRepository(t)
+	mockRepo := repoMocks.NewMockRepository(t)
 	mockAccrual := mocks.NewMockAccrual(t)
 
 	order := models.OrderProcess{Number: "123"}
@@ -166,7 +167,7 @@ func TestStartAccrualWorker_Success(t *testing.T) {
 func TestStartAccrualWorker_AccrualError(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err, "failed to create zap logger: %v", err)
-	mockRepo := mocks.NewMockRepository(t)
+	mockRepo := repoMocks.NewMockRepository(t)
 	mockAccrual := mocks.NewMockAccrual(t)
 
 	order := models.OrderProcess{Number: "123"}
@@ -193,14 +194,14 @@ func TestStartAccrualWorker_AccrualError(t *testing.T) {
 	case <-done:
 		t.Fatal("expected error, but worker finished without error")
 	case err := <-errCh:
-		assert.Assert(t, strings.Contains(err.Error(), "accrual error"), "error should contain 'accrual error'")
+		assert.Assert(t, strings.Contains(err.Error(), "error accrual"), "error should contain 'accrual error'")
 	}
 }
 
 func TestStartAccrualWorker_InvalidStatus(t *testing.T) {
 	logger, err := zap.NewDevelopment()
 	require.NoError(t, err, "failed to create zap logger: %v", err)
-	mockRepo := mocks.NewMockRepository(t)
+	mockRepo := repoMocks.NewMockRepository(t)
 	mockAccrual := mocks.NewMockAccrual(t)
 
 	order := models.OrderProcess{Number: "123"}

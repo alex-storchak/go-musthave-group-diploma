@@ -29,5 +29,7 @@ packages:
       Gophermart:
   github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/worker:
     interfaces:
-      Repository:
       Accrual:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/repository:
+    interfaces:
+      Repository:
