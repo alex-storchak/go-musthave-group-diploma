@@ -24,3 +24,6 @@ packages:
   github.com/alex-storchak/go-musthave-group-diploma/internal/accrual/worker:
     interfaces:
       RulesProvider:
+  github.com/alex-storchak/go-musthave-group-diploma/internal/validator:
+    interfaces:
+      Validator:
