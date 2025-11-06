@@ -28,11 +28,12 @@ type Accrual interface {
 }
 
 type ProcessOrder struct {
-	mu      *sync.RWMutex
-	store   repository.Repository
-	accrual Accrual
-	logger  *zap.Logger
-	orders  []models.OrderProcess
+	store         repository.Repository
+	accrual       Accrual
+	logger        *zap.Logger
+	ordersCh      chan models.OrderProcess
+	processingIDs map[string]struct{}
+	mu            sync.RWMutex
 }
 
 func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt ...repository.Repository) (*ProcessOrder, error) {
@@ -50,11 +51,12 @@ func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt .
 	acc := accrual.New(cfg.Accrual)
 
 	return &ProcessOrder{
-		mu:      &sync.RWMutex{},
-		store:   store,
-		accrual: acc,
-		logger:  l,
-		orders:  []models.OrderProcess{},
+		store:         store,
+		accrual:       acc,
+		logger:        l,
+		ordersCh:      make(chan models.OrderProcess, ordersBufferSize),
+		processingIDs: make(map[string]struct{}),
+		mu:            sync.RWMutex{},
 	}, nil
 }
 
@@ -64,19 +66,6 @@ func NewRepository(conn *gorm.DB) (repository.Repository, error) {
 		return nil, fmt.Errorf("create repository: %w", err)
 	}
 	return repo, nil
-}
-
-func (f *ProcessOrder) FindUnprocessedOrder() (*models.OrderProcess, bool) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	if len(f.orders) > 0 {
-		res := f.orders[0]
-		f.orders = f.orders[1:]
-		return &res, true
-	}
-
-	return nil, false
 }
 
 func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
@@ -124,27 +113,17 @@ func (f *ProcessOrder) doneProcessing(
 	done chan<- struct{},
 	errCh chan<- error,
 ) {
-	var order *models.OrderProcess
-	var found bool
-
 	for {
 		select {
 		case <-ctx.Done():
-			f.logger.Info("stop search order")
+			f.logger.Info("stop search order (context cancelled)")
 			return
-		default:
-			order, found = f.FindUnprocessedOrder()
-			if found {
-				break
-			}
-			time.Sleep(sleepSearchOrders)
-		}
-		if found {
-			break
+
+		case order := <-f.ordersCh:
+			go f.startAccrualWorker(ctx, &order, done, errCh)
+			return
 		}
 	}
-
-	go f.startAccrualWorker(ctx, order, done, errCh)
 }
 
 func (f *ProcessOrder) startAccrualWorker(
@@ -196,6 +175,10 @@ func (f *ProcessOrder) startAccrualWorker(
 			zap.String("status", string(accrualResponse.Status)),
 			zap.String("order_number", accrualResponse.Number))
 	}
+
+	f.mu.Lock()
+	delete(f.processingIDs, order.Number)
+	f.mu.Unlock()
 }
 
 func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
@@ -216,16 +199,29 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 }
 
 func (f *ProcessOrder) GetOrders(ctx context.Context) {
-	if len(f.orders) > ordersBufferSize {
-		return
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	currentIDs := make([]string, 0, len(f.processingIDs))
+	for id := range f.processingIDs {
+		currentIDs = append(currentIDs, id)
 	}
 
-	newOrder, err := f.store.GetNewOrders(ctx, f.orders)
+	newOrders, err := f.store.GetNewOrders(ctx, currentIDs)
 	if err != nil {
 		f.logger.Error("get new orders", zap.Error(err))
 		return
 	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.orders = append(f.orders, newOrder...)
+
+	for _, order := range newOrders {
+		select {
+		case <-ctx.Done():
+			return
+		case f.ordersCh <- order:
+			f.processingIDs[order.Number] = struct{}{}
+		default:
+			// Канал переполнен — пропускаем (или логируем)
+			f.logger.Warn("orders channel full, skipping order", zap.String("number", order.Number))
+		}
+	}
 }

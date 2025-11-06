@@ -238,8 +238,8 @@ func (_c *MockRepository_GetBalance_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // GetNewOrders provides a mock function for the type MockRepository
-func (_mock *MockRepository) GetNewOrders(ctx context.Context, orders []models.OrderProcess) ([]models.OrderProcess, error) {
-	ret := _mock.Called(ctx, orders)
+func (_mock *MockRepository) GetNewOrders(ctx context.Context, numbers []string) ([]models.OrderProcess, error) {
+	ret := _mock.Called(ctx, numbers)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetNewOrders")
@@ -247,18 +247,18 @@ func (_mock *MockRepository) GetNewOrders(ctx context.Context, orders []models.O
 
 	var r0 []models.OrderProcess
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []models.OrderProcess) ([]models.OrderProcess, error)); ok {
-		return returnFunc(ctx, orders)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) ([]models.OrderProcess, error)); ok {
+		return returnFunc(ctx, numbers)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []models.OrderProcess) []models.OrderProcess); ok {
-		r0 = returnFunc(ctx, orders)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) []models.OrderProcess); ok {
+		r0 = returnFunc(ctx, numbers)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]models.OrderProcess)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []models.OrderProcess) error); ok {
-		r1 = returnFunc(ctx, orders)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, numbers)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -272,20 +272,20 @@ type MockRepository_GetNewOrders_Call struct {
 
 // GetNewOrders is a helper method to define mock.On call
 //   - ctx context.Context
-//   - orders []models.OrderProcess
-func (_e *MockRepository_Expecter) GetNewOrders(ctx interface{}, orders interface{}) *MockRepository_GetNewOrders_Call {
-	return &MockRepository_GetNewOrders_Call{Call: _e.mock.On("GetNewOrders", ctx, orders)}
+//   - numbers []string
+func (_e *MockRepository_Expecter) GetNewOrders(ctx interface{}, numbers interface{}) *MockRepository_GetNewOrders_Call {
+	return &MockRepository_GetNewOrders_Call{Call: _e.mock.On("GetNewOrders", ctx, numbers)}
 }
 
-func (_c *MockRepository_GetNewOrders_Call) Run(run func(ctx context.Context, orders []models.OrderProcess)) *MockRepository_GetNewOrders_Call {
+func (_c *MockRepository_GetNewOrders_Call) Run(run func(ctx context.Context, numbers []string)) *MockRepository_GetNewOrders_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []models.OrderProcess
+		var arg1 []string
 		if args[1] != nil {
-			arg1 = args[1].([]models.OrderProcess)
+			arg1 = args[1].([]string)
 		}
 		run(
 			arg0,
@@ -300,7 +300,7 @@ func (_c *MockRepository_GetNewOrders_Call) Return(orderProcesss []models.OrderP
 	return _c
 }
 
-func (_c *MockRepository_GetNewOrders_Call) RunAndReturn(run func(ctx context.Context, orders []models.OrderProcess) ([]models.OrderProcess, error)) *MockRepository_GetNewOrders_Call {
+func (_c *MockRepository_GetNewOrders_Call) RunAndReturn(run func(ctx context.Context, numbers []string) ([]models.OrderProcess, error)) *MockRepository_GetNewOrders_Call {
 	_c.Call.Return(run)
 	return _c
 }

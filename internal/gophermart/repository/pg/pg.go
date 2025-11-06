@@ -69,13 +69,7 @@ func (st *Store) GetOrderUser(ctx context.Context, getOrderUser models.GetOrderU
 	return &order, nil
 }
 
-func (st *Store) GetNewOrders(ctx context.Context, orders []models.OrderProcess) ([]models.OrderProcess, error) {
-
-	numbers := make([]string, 0, getNewOrdersBatchSize)
-	for _, order := range orders {
-		numbers = append(numbers, order.Number)
-	}
-
+func (st *Store) GetNewOrders(ctx context.Context, numbers []string) ([]models.OrderProcess, error) {
 	str := ""
 	if len(numbers) != 0 {
 		ns := "'" + strings.Join(numbers, "','") + "'"
