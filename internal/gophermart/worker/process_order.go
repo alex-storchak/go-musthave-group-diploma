@@ -116,7 +116,7 @@ func (f *ProcessOrder) doneProcessing(
 	for {
 		select {
 		case <-ctx.Done():
-			f.logger.Info("stop search order (context cancelled)")
+			f.logger.Info("stop search order")
 			return
 
 		case order := <-f.ordersCh:
