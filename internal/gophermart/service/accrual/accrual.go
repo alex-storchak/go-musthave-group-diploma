@@ -48,7 +48,7 @@ func (c *Accrual) SetRetryAfter(t time.Duration) {
 func (c *Accrual) Get(ctx context.Context, order models.OrderProcess) (*models.AccrualResponse, error) {
 
 	if c.RetryAfter > 0 {
-		return nil, nil
+		return nil, newRetryAfter(c.RetryAfter)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/orders/%s", c.cfg.Addr, order.Number), nil)

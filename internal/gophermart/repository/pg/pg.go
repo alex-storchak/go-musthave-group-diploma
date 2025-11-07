@@ -69,13 +69,7 @@ func (st *Store) GetOrderUser(ctx context.Context, getOrderUser models.GetOrderU
 	return &order, nil
 }
 
-func (st *Store) GetNewOrders(ctx context.Context, numbers []string) ([]models.OrderProcess, error) {
-	str := ""
-	if len(numbers) != 0 {
-		ns := "'" + strings.Join(numbers, "','") + "'"
-		str = fmt.Sprintf("AND order_number NOT IN (%s)", ns)
-	}
-
+func (st *Store) GetNewOrders(ctx context.Context) ([]models.OrderProcess, error) {
 	var result []models.OrderProcess
 
 	err := st.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -83,25 +77,21 @@ func (st *Store) GetNewOrders(ctx context.Context, numbers []string) ([]models.O
 			WITH selected_orders AS (
 				SELECT order_number
 				FROM orders
-				WHERE status IN ('NEW', 'PROCESSING')
-				%s
+				WHERE status = 'NEW'
 				ORDER BY uploaded_at ASC
 				LIMIT %d
-				FOR UPDATE
+				FOR UPDATE SKIP LOCKED
 			),
 			updated_orders AS (
 				UPDATE orders
 				SET
 					status = 'PROCESSING',
-					processed_at = CASE
-						WHEN status = 'NEW' THEN NOW()
-						ELSE processed_at
-					END
+					processed_at = NOW()
 				WHERE order_number IN (SELECT order_number FROM selected_orders)
 				RETURNING order_number, processed_at
 			)
 			SELECT order_number FROM updated_orders ORDER BY processed_at ASC;
-		`, str, getNewOrdersBatchSize)).Rows()
+		`, getNewOrdersBatchSize)).Rows()
 
 		if err != nil {
 			return fmt.Errorf("run sql: %w", err)
@@ -171,7 +161,7 @@ func (st *Store) SetOrder(ctx context.Context, storeOrder models.StoreOrder) err
 func (st *Store) UpdateOrderInvalid(ctx context.Context, accrualResponse *models.AccrualResponse) error {
 	res := st.conn.
 		WithContext(ctx).
-		Table("balance").
+		Table("orders").
 		Where("order_number = ?", accrualResponse.Number).
 		Updates(map[string]interface{}{
 			"status":       models.OrderInvalid,
@@ -398,6 +388,32 @@ func (st *Store) IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (
 	}()
 
 	return ordersChan, errorChan
+}
+
+func (st *Store) ResetStuckOrders(ctx context.Context, timeout time.Duration, batchLimit int) error {
+	timeoutSeconds := int64(timeout.Seconds())
+	err := st.conn.WithContext(ctx).Raw(fmt.Sprintf(`
+			WITH stuck_orders AS (
+				SELECT id, order_number
+				FROM orders 
+				WHERE status = 'PROCESSING'
+				AND uploaded_at < CURRENT_TIMESTAMP - (%d * INTERVAL '1 second')
+				ORDER BY uploaded_at ASC
+				LIMIT %d
+				FOR UPDATE SKIP LOCKED
+			)
+			UPDATE orders 
+			SET 
+				status = 'NEW',
+				processed_at = NULL
+			WHERE id IN (SELECT id FROM stuck_orders)
+		`, timeoutSeconds, batchLimit)).Error
+
+	if err != nil {
+		return fmt.Errorf("run reset stuck orders sql: %w", err)
+	}
+
+	return nil
 }
 
 func (st *Store) GetBalance(ctx context.Context, getBalance models.GetBalanceRequest) (*models.ShowBalanceResponse, error) {

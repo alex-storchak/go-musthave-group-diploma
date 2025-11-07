@@ -8,6 +8,7 @@ import (
 	"context"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	mock "github.com/stretchr/testify/mock"
+	"time"
 )
 
 // NewMockRepository creates a new instance of MockRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -238,8 +239,8 @@ func (_c *MockRepository_GetBalance_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // GetNewOrders provides a mock function for the type MockRepository
-func (_mock *MockRepository) GetNewOrders(ctx context.Context, numbers []string) ([]models.OrderProcess, error) {
-	ret := _mock.Called(ctx, numbers)
+func (_mock *MockRepository) GetNewOrders(ctx context.Context) ([]models.OrderProcess, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetNewOrders")
@@ -247,18 +248,18 @@ func (_mock *MockRepository) GetNewOrders(ctx context.Context, numbers []string)
 
 	var r0 []models.OrderProcess
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) ([]models.OrderProcess, error)); ok {
-		return returnFunc(ctx, numbers)
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]models.OrderProcess, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) []models.OrderProcess); ok {
-		r0 = returnFunc(ctx, numbers)
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []models.OrderProcess); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]models.OrderProcess)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
-		r1 = returnFunc(ctx, numbers)
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -272,24 +273,18 @@ type MockRepository_GetNewOrders_Call struct {
 
 // GetNewOrders is a helper method to define mock.On call
 //   - ctx context.Context
-//   - numbers []string
-func (_e *MockRepository_Expecter) GetNewOrders(ctx interface{}, numbers interface{}) *MockRepository_GetNewOrders_Call {
-	return &MockRepository_GetNewOrders_Call{Call: _e.mock.On("GetNewOrders", ctx, numbers)}
+func (_e *MockRepository_Expecter) GetNewOrders(ctx interface{}) *MockRepository_GetNewOrders_Call {
+	return &MockRepository_GetNewOrders_Call{Call: _e.mock.On("GetNewOrders", ctx)}
 }
 
-func (_c *MockRepository_GetNewOrders_Call) Run(run func(ctx context.Context, numbers []string)) *MockRepository_GetNewOrders_Call {
+func (_c *MockRepository_GetNewOrders_Call) Run(run func(ctx context.Context)) *MockRepository_GetNewOrders_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []string
-		if args[1] != nil {
-			arg1 = args[1].([]string)
-		}
 		run(
 			arg0,
-			arg1,
 		)
 	})
 	return _c
@@ -300,7 +295,7 @@ func (_c *MockRepository_GetNewOrders_Call) Return(orderProcesss []models.OrderP
 	return _c
 }
 
-func (_c *MockRepository_GetNewOrders_Call) RunAndReturn(run func(ctx context.Context, numbers []string) ([]models.OrderProcess, error)) *MockRepository_GetNewOrders_Call {
+func (_c *MockRepository_GetNewOrders_Call) RunAndReturn(run func(ctx context.Context) ([]models.OrderProcess, error)) *MockRepository_GetNewOrders_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -626,6 +621,69 @@ func (_c *MockRepository_Ping_Call) Return(err error) *MockRepository_Ping_Call 
 }
 
 func (_c *MockRepository_Ping_Call) RunAndReturn(run func(ctx context.Context) error) *MockRepository_Ping_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResetStuckOrders provides a mock function for the type MockRepository
+func (_mock *MockRepository) ResetStuckOrders(ctx context.Context, timeout time.Duration, limit int) error {
+	ret := _mock.Called(ctx, timeout, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetStuckOrders")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Duration, int) error); ok {
+		r0 = returnFunc(ctx, timeout, limit)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockRepository_ResetStuckOrders_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetStuckOrders'
+type MockRepository_ResetStuckOrders_Call struct {
+	*mock.Call
+}
+
+// ResetStuckOrders is a helper method to define mock.On call
+//   - ctx context.Context
+//   - timeout time.Duration
+//   - limit int
+func (_e *MockRepository_Expecter) ResetStuckOrders(ctx interface{}, timeout interface{}, limit interface{}) *MockRepository_ResetStuckOrders_Call {
+	return &MockRepository_ResetStuckOrders_Call{Call: _e.mock.On("ResetStuckOrders", ctx, timeout, limit)}
+}
+
+func (_c *MockRepository_ResetStuckOrders_Call) Run(run func(ctx context.Context, timeout time.Duration, limit int)) *MockRepository_ResetStuckOrders_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Duration
+		if args[1] != nil {
+			arg1 = args[1].(time.Duration)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ResetStuckOrders_Call) Return(err error) *MockRepository_ResetStuckOrders_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockRepository_ResetStuckOrders_Call) RunAndReturn(run func(ctx context.Context, timeout time.Duration, limit int) error) *MockRepository_ResetStuckOrders_Call {
 	_c.Call.Return(run)
 	return _c
 }

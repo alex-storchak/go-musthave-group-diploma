@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/config"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
@@ -10,15 +11,13 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"sync"
 	"time"
 )
 
 const (
 	maxConcurrent           = 10
-	sleepSearchOrders       = 50 * time.Millisecond
 	ordersBufferSize        = 50
-	getOrdersTickerDuration = 500 * time.Millisecond
+	getOrdersTickerDuration = 5 * time.Second
 )
 
 type Accrual interface {
@@ -28,12 +27,10 @@ type Accrual interface {
 }
 
 type ProcessOrder struct {
-	store         repository.Repository
-	accrual       Accrual
-	logger        *zap.Logger
-	ordersCh      chan models.OrderProcess
-	processingIDs map[string]struct{}
-	mu            *sync.RWMutex
+	store    repository.Repository
+	accrual  Accrual
+	logger   *zap.Logger
+	ordersCh chan models.OrderProcess
 }
 
 func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt ...repository.Repository) (*ProcessOrder, error) {
@@ -51,12 +48,10 @@ func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt .
 	acc := accrual.New(cfg.Accrual)
 
 	return &ProcessOrder{
-		store:         store,
-		accrual:       acc,
-		logger:        l,
-		ordersCh:      make(chan models.OrderProcess, ordersBufferSize),
-		processingIDs: make(map[string]struct{}),
-		mu:            &sync.RWMutex{},
+		store:    store,
+		accrual:  acc,
+		logger:   l,
+		ordersCh: make(chan models.OrderProcess, ordersBufferSize),
 	}, nil
 }
 
@@ -69,95 +64,67 @@ func NewRepository(conn *gorm.DB) (repository.Repository, error) {
 }
 
 func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
-	done := make(chan struct{}, maxConcurrent)
-	errCh := make(chan error, maxConcurrent)
+	errCh := make(chan error, 2*maxConcurrent)
 
 	go f.RunGetOrders(ctx)
 
-	var pauseTimer *time.Timer
+	f.startWorkers(ctx, errCh)
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				f.logger.Info("StartProcessOrder: context canceled")
-				return
+	go f.startPauseProcessor(ctx, errCh)
 
-			case err := <-errCh:
-				f.logger.Error("error accrual processing", zap.Error(err))
-				if f.accrual.GetRetryAfter() > 0 {
-					// Останавливаем текущий таймер, если есть
-					if pauseTimer != nil {
-						pauseTimer.Stop()
-					}
-					// Запускаем новый таймер
-					pauseTimer = time.AfterFunc(f.accrual.GetRetryAfter(), func() {
-						f.accrual.SetRetryAfter(0)
-						f.logger.Info("pause processing accrual ended")
-					})
-				}
+	go f.stuckOrdersWorker(ctx)
+}
 
-			case <-done:
-				f.doneProcessing(ctx, done, errCh)
-			}
-		}
-	}()
-
+func (f *ProcessOrder) startWorkers(ctx context.Context, errCh chan<- error) {
 	for i := 0; i < maxConcurrent; i++ {
-		done <- struct{}{}
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case order, ok := <-f.ordersCh:
+					if !ok {
+						return
+					}
+					f.processOrder(ctx, order, errCh)
+				}
+			}
+		}()
 	}
 }
 
-func (f *ProcessOrder) doneProcessing(
-	ctx context.Context,
-	done chan<- struct{},
-	errCh chan<- error,
-) {
+func (f *ProcessOrder) startPauseProcessor(ctx context.Context, errCh <-chan error) {
 	for {
 		select {
 		case <-ctx.Done():
-			f.logger.Info("stop search order")
 			return
-
-		case order := <-f.ordersCh:
-			go f.startAccrualWorker(ctx, &order, done, errCh)
-			return
+		case err := <-errCh:
+			f.logger.Error("error accrual processing", zap.Error(err))
+			if f.accrual.GetRetryAfter() > 0 {
+				time.AfterFunc(f.accrual.GetRetryAfter(), func() {
+					f.accrual.SetRetryAfter(0)
+					f.logger.Info("pause processing accrual ended")
+				})
+			}
 		}
 	}
 }
 
-func (f *ProcessOrder) startAccrualWorker(
-	ctx context.Context,
-	order *models.OrderProcess,
-	done chan<- struct{},
-	errCh chan<- error,
-) {
-	defer func() {
-		done <- struct{}{}
-	}()
-
-	// 1. Получение данных начисления
-	accrualResponse, err := f.accrual.Get(ctx, *order)
+func (f *ProcessOrder) processOrder(ctx context.Context, order models.OrderProcess, errCh chan<- error) {
+	// Получение данных начисления
+	accrualResponse, err := f.accrual.Get(ctx, order)
 	if err != nil {
 		errCh <- fmt.Errorf("accrual get failed: %w", err)
 		return
 	}
 
-	if accrualResponse == nil {
-		f.logger.Warn("accrual response is nil", zap.String("order_number", order.Number))
-		return
-	}
-
-	// 2. Обработка статусов через switch (нагляднее if-else)
+	// Обработка статусов
 	switch accrualResponse.Status {
-	case models.AccrualRegistered, models.AccrualProcessing, models.AccrualInvalid:
-		// Для этих статусов логика одинаковая
-		if accrualResponse.Status == models.AccrualInvalid {
-			if err := f.store.UpdateOrderInvalid(ctx, accrualResponse); err != nil {
-				errCh <- fmt.Errorf("update invalid order: %w", err)
-			}
+	case models.AccrualRegistered, models.AccrualProcessing:
+	case models.AccrualInvalid:
+		if err = f.store.UpdateOrderInvalid(ctx, accrualResponse); err != nil {
+			errCh <- fmt.Errorf("update invalid order: %w", err)
 		}
-
 	case models.AccrualProcessed:
 		if err := f.store.UpdateOrderProcessed(ctx, accrualResponse); err != nil {
 			f.logger.Error("failed to update processed order",
@@ -175,10 +142,6 @@ func (f *ProcessOrder) startAccrualWorker(
 			zap.String("status", string(accrualResponse.Status)),
 			zap.String("order_number", accrualResponse.Number))
 	}
-
-	f.mu.Lock()
-	delete(f.processingIDs, order.Number)
-	f.mu.Unlock()
 }
 
 func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
@@ -187,10 +150,13 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 
 	f.logger.Info("start process order")
 
+	f.GetOrders(ctx)
+
 	for {
 		select {
 		case <-ctx.Done():
 			f.logger.Info("stop process order")
+			close(f.ordersCh)
 			return
 		case <-ticker.C:
 			f.GetOrders(ctx)
@@ -199,15 +165,13 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 }
 
 func (f *ProcessOrder) GetOrders(ctx context.Context) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	currentIDs := make([]string, 0, len(f.processingIDs))
-	for id := range f.processingIDs {
-		currentIDs = append(currentIDs, id)
+	if f.accrual.GetRetryAfter() > 0 {
+		f.logger.Info("skip fetching new orders due to accrual pause",
+			zap.Duration("retry_after", f.accrual.GetRetryAfter()))
+		return
 	}
 
-	newOrders, err := f.store.GetNewOrders(ctx, currentIDs)
+	newOrders, err := f.store.GetNewOrders(ctx)
 	if err != nil {
 		f.logger.Error("get new orders", zap.Error(err))
 		return
@@ -216,12 +180,39 @@ func (f *ProcessOrder) GetOrders(ctx context.Context) {
 	for _, order := range newOrders {
 		select {
 		case <-ctx.Done():
+			f.logger.Info("stop getOrders")
 			return
 		case f.ordersCh <- order:
-			f.processingIDs[order.Number] = struct{}{}
-		default:
-			// Канал переполнен — пропускаем (или логируем)
-			f.logger.Warn("orders channel full, skipping order", zap.String("number", order.Number))
 		}
+	}
+}
+
+func (f *ProcessOrder) stuckOrdersWorker(ctx context.Context) {
+	const stuckOrderCheckInterval = 1 * time.Minute
+	tick := time.NewTicker(stuckOrderCheckInterval)
+	defer tick.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			f.logger.Info("stop stuck orders worker")
+			return
+		case <-tick.C:
+			f.resetStuckOrders(ctx)
+		}
+	}
+}
+
+func (f *ProcessOrder) resetStuckOrders(ctx context.Context) {
+	const (
+		stuckOrderTimeout    = 5 * time.Minute
+		stuckOrderBatchLimit = 1000
+	)
+	err := f.store.ResetStuckOrders(ctx, stuckOrderTimeout, stuckOrderBatchLimit)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			f.logger.Error("failed to reset stuck orders", zap.Error(err))
+		}
+		return
 	}
 }
