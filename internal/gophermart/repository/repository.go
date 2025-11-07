@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
+	"time"
 )
 
 type Repository interface {
@@ -12,9 +13,10 @@ type Repository interface {
 	UpdateOrderProcessed(ctx context.Context, accrualResponse *models.AccrualResponse) error
 	GetOrder(ctx context.Context, getOrder models.GetOrder) (*models.Order, error)
 	GetOrderUser(ctx context.Context, getOrderUser models.GetOrderUser) (*models.Order, error)
-	GetNewOrders(ctx context.Context, numbers []string) ([]models.OrderProcess, error)
+	GetNewOrders(ctx context.Context) ([]models.OrderProcess, error)
 	IndexOrder(ctx context.Context, indexOrder models.IndexOrder) (<-chan models.IndexOrderResponse, <-chan error)
 	CountOrder(ctx context.Context, indexOrder models.IndexOrder) (int64, error)
+	ResetStuckOrders(ctx context.Context, timeout time.Duration, limit int) error
 
 	GetBalance(ctx context.Context, getBalance models.GetBalanceRequest) (*models.ShowBalanceResponse, error)
 	SetDefaultBalance(ctx context.Context, setDefaultBalance models.SetDefaultBalanceRequest) error
