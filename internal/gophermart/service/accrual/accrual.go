@@ -15,9 +15,20 @@ import (
 	"time"
 )
 
+type RetryAfterError struct {
+	Duration time.Duration
+}
+
+func (e RetryAfterError) Error() string {
+	return fmt.Sprintf("retry after: %s", e.Duration)
+}
+
+func NewRetryAfterError(d time.Duration) error {
+	return &RetryAfterError{Duration: d}
+}
+
 type Accrual struct {
 	cfg        *config.Config
-	retryUntil time.Time
 	mu         *sync.Mutex
 	httpClient *http.Client
 }
@@ -32,50 +43,11 @@ func New(cfg *config.Config) *Accrual {
 	}
 }
 
-func newRetryAfter(n time.Duration) error {
-	return fmt.Errorf("%w %d", myerrors.ErrAccrualRetryAfter, n)
-}
-
 func newErrorRequest(code int) error {
 	return fmt.Errorf("%w status %d", myerrors.ErrAccrual, code)
 }
 
-// GetRetryAfter возвращает оставшееся время паузы.
-func (c *Accrual) GetRetryAfter() time.Duration {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.retryUntil.IsZero() {
-		return 0
-	}
-	now := time.Now()
-	if now.After(c.retryUntil) {
-		return 0
-	}
-	return c.retryUntil.Sub(now)
-}
-
-// SetRetryAfter устанавливает паузу
-func (c *Accrual) SetRetryAfter(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if d <= 0 {
-		c.retryUntil = time.Time{}
-		return
-	}
-	newUntil := time.Now().Add(d)
-	if newUntil.Before(c.retryUntil) {
-		return
-	}
-	c.retryUntil = newUntil
-}
-
-//nolint:cyclop // clear enough
 func (c *Accrual) Get(ctx context.Context, order models.OrderProcess) (*models.AccrualResponse, error) {
-
-	if d := c.GetRetryAfter(); d > 0 {
-		return nil, newRetryAfter(d)
-	}
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/orders/%s", c.cfg.Addr, order.Number), nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -108,8 +80,7 @@ func (c *Accrual) Get(ctx context.Context, order models.OrderProcess) (*models.A
 				d = time.Duration(sec) * time.Second
 			}
 		}
-		c.SetRetryAfter(d)
-		return nil, newRetryAfter(d)
+		return nil, NewRetryAfterError(d)
 	case http.StatusNoContent:
 		return nil, myerrors.ErrAccrualNoOrder
 

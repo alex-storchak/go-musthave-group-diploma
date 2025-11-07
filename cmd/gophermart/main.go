@@ -69,7 +69,8 @@ func run(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("new process order: %w", err)
 	}
-	go processOrder.StartProcessOrder(ctx)
+	defer processOrder.Close()
+	processOrder.StartProcessOrder(ctx)
 
 	handler.Serve(ctx, zl, cfg.Handlers, router)
 	return nil

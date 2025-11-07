@@ -11,6 +11,7 @@ import (
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/service/accrual"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
+	"sync"
 	"time"
 )
 
@@ -22,14 +23,17 @@ const (
 
 type Accrual interface {
 	Get(ctx context.Context, order models.OrderProcess) (*models.AccrualResponse, error)
-	GetRetryAfter() time.Duration
 }
 
 type ProcessOrder struct {
-	store    repository.Repository
-	accrual  Accrual
-	logger   *zap.Logger
-	ordersCh chan models.OrderProcess
+	store      repository.Repository
+	accrual    Accrual
+	logger     *zap.Logger
+	ordersCh   chan models.OrderProcess
+	mu         *sync.Mutex
+	retryUntil time.Time
+	wg         sync.WaitGroup
+	closeOnce  sync.Once
 }
 
 func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt ...repository.Repository) (*ProcessOrder, error) {
@@ -51,6 +55,7 @@ func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt .
 		accrual:  acc,
 		logger:   l,
 		ordersCh: make(chan models.OrderProcess, ordersBufferSize),
+		mu:       &sync.Mutex{},
 	}, nil
 }
 
@@ -63,23 +68,33 @@ func NewRepository(conn *gorm.DB) (repository.Repository, error) {
 }
 
 func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
-	errCh := make(chan error, 2*maxConcurrent)
+	f.wg.Add(1)
+	go func() {
+		defer f.wg.Done()
+		f.RunGetOrders(ctx)
+	}()
 
-	go f.RunGetOrders(ctx)
+	f.startWorkers(ctx)
 
-	f.startWorkers(ctx, errCh)
-
-	go f.stuckOrdersWorker(ctx)
+	f.wg.Add(1)
+	go func() {
+		defer f.wg.Done()
+		f.stuckOrdersWorker(ctx)
+	}()
 }
 
-func (f *ProcessOrder) startWorkers(ctx context.Context, errCh chan<- error) {
+func (f *ProcessOrder) startWorkers(ctx context.Context) {
 	for i := 0; i < maxConcurrent; i++ {
 		workerID := i
-		go f.worker(ctx, errCh, workerID)
+		f.wg.Add(1)
+		go func() {
+			defer f.wg.Done()
+			f.worker(ctx, workerID)
+		}()
 	}
 }
 
-func (f *ProcessOrder) worker(ctx context.Context, errCh chan<- error, workerID int) {
+func (f *ProcessOrder) worker(ctx context.Context, workerID int) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -91,29 +106,69 @@ func (f *ProcessOrder) worker(ctx context.Context, errCh chan<- error, workerID 
 			}
 
 			select {
-			case order, ok := <-f.ordersCh:
-				if !ok {
-					return
-				}
-				f.processOrder(ctx, order, errCh)
 			case <-ctx.Done():
 				return
 			}
+		case order, ok := <-f.ordersCh:
+			if !ok {
+				return
+			}
+			f.processOrder(ctx, order)
 		}
 	}
 }
 
-func (f *ProcessOrder) waitRetry(ctx context.Context, workerID int) bool {
-	d := f.accrual.GetRetryAfter()
+func (f *ProcessOrder) getRetryAfterUnsafe() time.Duration {
+	if f.retryUntil.IsZero() {
+		return 0
+	}
+
+	now := time.Now()
+	if now.After(f.retryUntil) {
+		return 0
+	}
+	return f.retryUntil.Sub(now)
+}
+
+func (f *ProcessOrder) shouldRetryAfter() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	d := f.getRetryAfterUnsafe()
+	return d > 0
+}
+
+func (f *ProcessOrder) setRetryAfter(d time.Duration) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	if d <= 0 {
+		f.retryUntil = time.Time{}
+		return
+	}
+
+	newUntil := time.Now().Add(d)
+	if newUntil.Before(f.retryUntil) {
+		return
+	}
+	f.retryUntil = newUntil
+}
+
+func (f *ProcessOrder) waitRetry(ctx context.Context, workerID int) bool {
+	f.mu.Lock()
+	d := f.getRetryAfterUnsafe()
+
+	if d <= 0 {
+		f.mu.Unlock()
 		return true
 	}
+
+	timer := time.NewTimer(d)
+	f.mu.Unlock()
 
 	f.logger.Debug("worker paused due to retry-after",
 		zap.Duration("retry_after", d),
 		zap.Int("worker_id", workerID))
 
-	timer := time.NewTimer(d)
 	defer func() {
 		if !timer.Stop() {
 			select {
@@ -135,11 +190,17 @@ func (f *ProcessOrder) waitRetry(ctx context.Context, workerID int) bool {
 	}
 }
 
-func (f *ProcessOrder) processOrder(ctx context.Context, order models.OrderProcess, errCh chan<- error) {
+func (f *ProcessOrder) processOrder(ctx context.Context, order models.OrderProcess) {
 	// Получение данных начисления
 	accrualResponse, err := f.accrual.Get(ctx, order)
 	if err != nil {
-		errCh <- fmt.Errorf("accrual get failed: %w", err)
+		var rae *accrual.RetryAfterError
+		if errors.As(err, &rae) {
+			f.setRetryAfter(rae.Duration)
+			f.logger.Info("accrual rate limit hit, setting retry-after", zap.Duration("after", rae.Duration))
+			return
+		}
+		f.logger.Error("failed to get accrual", zap.Error(err))
 		return
 	}
 
@@ -148,20 +209,18 @@ func (f *ProcessOrder) processOrder(ctx context.Context, order models.OrderProce
 	case models.AccrualRegistered, models.AccrualProcessing:
 	case models.AccrualInvalid:
 		if err = f.store.UpdateOrderInvalid(ctx, accrualResponse); err != nil {
-			errCh <- fmt.Errorf("update invalid order: %w", err)
+			f.logger.Error("failed to update invalid order", zap.Error(err))
 		}
 	case models.AccrualProcessed:
 		if err := f.store.UpdateOrderProcessed(ctx, accrualResponse); err != nil {
 			f.logger.Error("failed to update processed order",
 				zap.String("order_number", accrualResponse.Number),
 				zap.Error(err))
-			errCh <- fmt.Errorf("update processed order: %w", err)
 		} else {
 			f.logger.Info("order processed successfully",
 				zap.String("order_number", accrualResponse.Number),
 				zap.Float64("accrual", float64(accrualResponse.Accrual)))
 		}
-
 	default:
 		f.logger.Warn("unknown accrual status",
 			zap.String("status", string(accrualResponse.Status)),
@@ -181,7 +240,6 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			f.logger.Info("stop process order")
-			close(f.ordersCh)
 			return
 		case <-ticker.C:
 			f.GetOrders(ctx)
@@ -190,8 +248,8 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 }
 
 func (f *ProcessOrder) GetOrders(ctx context.Context) {
-	if d := f.accrual.GetRetryAfter(); d > 0 {
-		f.logger.Debug("skip fetching due to accrual pause", zap.Duration("retry_after", d))
+	if f.shouldRetryAfter() {
+		f.logger.Debug("skip fetching due to accrual pause")
 		return
 	}
 
@@ -239,4 +297,12 @@ func (f *ProcessOrder) resetStuckOrders(ctx context.Context) {
 		}
 		return
 	}
+}
+
+func (f *ProcessOrder) Close() {
+	f.closeOnce.Do(func() {
+		close(f.ordersCh)
+		f.wg.Wait()
+		f.logger.Debug("ProcessOrder closed")
+	})
 }

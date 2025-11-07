@@ -12,14 +12,11 @@ var (
 	ErrBalanceNotFound    = errors.New("not found balance")
 	ErrConflictNumber     = errors.New("number conflict")
 	ErrBalance            = errors.New("insufficient funds")
-	ErrAccrualRetryAfter  = errors.New("retry after")
 	ErrAccrualNoOrder     = errors.New("no order")
 	ErrAccrual            = errors.New("error accrual")
 	ErrAccrualResponseNil = errors.New("accrual response is nil")
 	ErrOrderNumberNil     = errors.New("order number is empty")
 	ErrValidation         = errors.New("validation error")
-	ErrStreamingSupported = errors.New("streaming is not supported")
-	ErrRepoError          = errors.New("repo error")
 )
 
 func ErrorValidateJSONResponse(w http.ResponseWriter, messages map[string]map[string]string, code int) {
