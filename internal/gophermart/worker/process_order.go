@@ -23,7 +23,6 @@ const (
 type Accrual interface {
 	Get(ctx context.Context, order models.OrderProcess) (*models.AccrualResponse, error)
 	GetRetryAfter() time.Duration
-	SetRetryAfter(t time.Duration)
 }
 
 type ProcessOrder struct {
@@ -70,43 +69,69 @@ func (f *ProcessOrder) StartProcessOrder(ctx context.Context) {
 
 	f.startWorkers(ctx, errCh)
 
-	go f.startPauseProcessor(ctx, errCh)
-
 	go f.stuckOrdersWorker(ctx)
 }
 
 func (f *ProcessOrder) startWorkers(ctx context.Context, errCh chan<- error) {
 	for i := 0; i < maxConcurrent; i++ {
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case order, ok := <-f.ordersCh:
-					if !ok {
-						return
-					}
-					f.processOrder(ctx, order, errCh)
-				}
-			}
-		}()
+		workerID := i
+		go f.worker(ctx, errCh, workerID)
 	}
 }
 
-func (f *ProcessOrder) startPauseProcessor(ctx context.Context, errCh <-chan error) {
+func (f *ProcessOrder) worker(ctx context.Context, errCh chan<- error, workerID int) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case err := <-errCh:
-			f.logger.Error("error accrual processing", zap.Error(err))
-			if f.accrual.GetRetryAfter() > 0 {
-				time.AfterFunc(f.accrual.GetRetryAfter(), func() {
-					f.accrual.SetRetryAfter(0)
-					f.logger.Info("pause processing accrual ended")
-				})
+		default:
+			// Пауза перед обработкой заказа
+			if ok := f.waitRetry(ctx, workerID); !ok {
+				return
+			}
+
+			select {
+			case order, ok := <-f.ordersCh:
+				if !ok {
+					return
+				}
+				f.processOrder(ctx, order, errCh)
+			case <-ctx.Done():
+				return
 			}
 		}
+	}
+}
+
+func (f *ProcessOrder) waitRetry(ctx context.Context, workerID int) bool {
+	d := f.accrual.GetRetryAfter()
+	if d <= 0 {
+		return true
+	}
+
+	f.logger.Debug("worker paused due to retry-after",
+		zap.Duration("retry_after", d),
+		zap.Int("worker_id", workerID))
+
+	timer := time.NewTimer(d)
+	defer func() {
+		if !timer.Stop() {
+			select {
+			case <-timer.C:
+			default:
+			}
+		}
+	}()
+
+	if err := ctx.Err(); err != nil {
+		return false
+	}
+
+	select {
+	case <-timer.C:
+		return true
+	case <-ctx.Done():
+		return false
 	}
 }
 
@@ -165,9 +190,8 @@ func (f *ProcessOrder) RunGetOrders(ctx context.Context) {
 }
 
 func (f *ProcessOrder) GetOrders(ctx context.Context) {
-	if f.accrual.GetRetryAfter() > 0 {
-		f.logger.Info("skip fetching new orders due to accrual pause",
-			zap.Duration("retry_after", f.accrual.GetRetryAfter()))
+	if d := f.accrual.GetRetryAfter(); d > 0 {
+		f.logger.Debug("skip fetching due to accrual pause", zap.Duration("retry_after", d))
 		return
 	}
 
