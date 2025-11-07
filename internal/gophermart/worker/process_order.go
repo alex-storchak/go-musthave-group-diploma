@@ -33,7 +33,7 @@ type ProcessOrder struct {
 	logger        *zap.Logger
 	ordersCh      chan models.OrderProcess
 	processingIDs map[string]struct{}
-	mu            sync.RWMutex
+	mu            *sync.RWMutex
 }
 
 func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt ...repository.Repository) (*ProcessOrder, error) {
@@ -56,7 +56,7 @@ func NewProcessOrder(conn *gorm.DB, cfg *config.Config, l *zap.Logger, repoOpt .
 		logger:        l,
 		ordersCh:      make(chan models.OrderProcess, ordersBufferSize),
 		processingIDs: make(map[string]struct{}),
-		mu:            sync.RWMutex{},
+		mu:            &sync.RWMutex{},
 	}, nil
 }
 

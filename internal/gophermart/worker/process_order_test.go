@@ -60,7 +60,7 @@ func TestGetOrders(t *testing.T) {
 		logger:        logger,
 		ordersCh:      make(chan models.OrderProcess, ordersBufferSize),
 		processingIDs: make(map[string]struct{}),
-		mu:            sync.RWMutex{},
+		mu:            &sync.RWMutex{},
 	}
 
 	ctx := t.Context()
@@ -94,7 +94,7 @@ func TestGetOrders_RepoError(t *testing.T) {
 		logger:        logger,
 		ordersCh:      make(chan models.OrderProcess, ordersBufferSize),
 		processingIDs: make(map[string]struct{}),
-		mu:            sync.RWMutex{},
+		mu:            &sync.RWMutex{},
 	}
 
 	ctx := t.Context()
@@ -139,7 +139,7 @@ func TestDoneProcessing(t *testing.T) {
 		accrual:       mockAccrual,
 		ordersCh:      make(chan models.OrderProcess, 1),
 		processingIDs: make(map[string]struct{}),
-		mu:            sync.RWMutex{},
+		mu:            &sync.RWMutex{},
 		logger:        logger,
 	}
 
@@ -191,7 +191,7 @@ func TestStartAccrualWorker_Success(t *testing.T) {
 		store:   mockRepo,
 		accrual: mockAccrual,
 		logger:  logger,
-		mu:      sync.RWMutex{},
+		mu:      &sync.RWMutex{},
 	}
 
 	done := make(chan struct{}, 1)
@@ -225,7 +225,7 @@ func TestStartAccrualWorker_AccrualError(t *testing.T) {
 		store:   mockRepo,
 		accrual: mockAccrual,
 		logger:  logger,
-		mu:      sync.RWMutex{},
+		mu:      &sync.RWMutex{},
 	}
 
 	done := make(chan struct{}, 1)
@@ -269,7 +269,7 @@ func TestStartAccrualWorker_InvalidStatus(t *testing.T) {
 		store:   mockRepo,
 		accrual: mockAccrual,
 		logger:  logger,
-		mu:      sync.RWMutex{},
+		mu:      &sync.RWMutex{},
 	}
 
 	done := make(chan struct{}, 1)
