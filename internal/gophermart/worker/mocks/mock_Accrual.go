@@ -8,7 +8,6 @@ import (
 	"context"
 	"github.com/alex-storchak/go-musthave-group-diploma/internal/gophermart/models"
 	mock "github.com/stretchr/testify/mock"
-	"time"
 )
 
 // NewMockAccrual creates a new instance of MockAccrual. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -102,50 +101,6 @@ func (_c *MockAccrual_Get_Call) Return(accrualResponse *models.AccrualResponse, 
 }
 
 func (_c *MockAccrual_Get_Call) RunAndReturn(run func(ctx context.Context, order models.OrderProcess) (*models.AccrualResponse, error)) *MockAccrual_Get_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetRetryAfter provides a mock function for the type MockAccrual
-func (_mock *MockAccrual) GetRetryAfter() time.Duration {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetRetryAfter")
-	}
-
-	var r0 time.Duration
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
-	} else {
-		r0 = ret.Get(0).(time.Duration)
-	}
-	return r0
-}
-
-// MockAccrual_GetRetryAfter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRetryAfter'
-type MockAccrual_GetRetryAfter_Call struct {
-	*mock.Call
-}
-
-// GetRetryAfter is a helper method to define mock.On call
-func (_e *MockAccrual_Expecter) GetRetryAfter() *MockAccrual_GetRetryAfter_Call {
-	return &MockAccrual_GetRetryAfter_Call{Call: _e.mock.On("GetRetryAfter")}
-}
-
-func (_c *MockAccrual_GetRetryAfter_Call) Run(run func()) *MockAccrual_GetRetryAfter_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockAccrual_GetRetryAfter_Call) Return(duration time.Duration) *MockAccrual_GetRetryAfter_Call {
-	_c.Call.Return(duration)
-	return _c
-}
-
-func (_c *MockAccrual_GetRetryAfter_Call) RunAndReturn(run func() time.Duration) *MockAccrual_GetRetryAfter_Call {
 	_c.Call.Return(run)
 	return _c
 }
