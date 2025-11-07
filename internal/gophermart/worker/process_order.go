@@ -108,12 +108,12 @@ func (f *ProcessOrder) worker(ctx context.Context, workerID int) {
 			select {
 			case <-ctx.Done():
 				return
+			case order, ok := <-f.ordersCh:
+				if !ok {
+					return
+				}
+				f.processOrder(ctx, order)
 			}
-		case order, ok := <-f.ordersCh:
-			if !ok {
-				return
-			}
-			f.processOrder(ctx, order)
 		}
 	}
 }
