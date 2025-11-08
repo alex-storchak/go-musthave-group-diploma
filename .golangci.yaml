@@ -1,0 +1,239 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+output:
+  formats:
+    text:
+      path: stdout
+      colors: true
+    code-climate:
+      path: ./lint-report.json
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+
+linters:
+  default: none
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+#    rules:
+#      - path: _test\\.go
+#        linters:
+#          - errcheck
+    paths:
+      - vendor
+      - third_party
+      - .git
+      - .cache
+      - ".*_generated\\.go"
+      - ".*\\.pb\\.go"
+  enable:
+    # Базовая группа качества кода
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+
+    # Стиль и формат
+    - revive               # замена golint, гибкие правила
+    - gocritic
+    - misspell
+    - nolintlint
+
+    # Ошибки/паники/возвраты
+    - errcheck
+    - errorlint
+    - wrapcheck
+    - err113             # единообразие ошибок
+
+    # Конкурентность/блокировки
+    - mnd                # "магические числа" (умеренно)
+#    - gocyclo              # цикломатическая сложность
+    - cyclop               # альтернатива gocyclo, можно оставить один
+    - prealloc
+    - bodyclose
+
+    # Прочее
+    - dupl
+    - exhaustive
+    - goconst
+    - gocognit
+    - nakedret
+    - unparam
+    - predeclared
+    - asciicheck
+    - depguard             # контроль зависимостей
+    - usetesting
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment     # может быть шумным
+
+    staticcheck:
+      checks: ["all"]
+
+    revive:
+      severity: warning
+      rules:
+        - name: indent-error-flow
+        - name: error-naming
+        - name: errorf
+        - name: unexported-return
+        - name: receiver-naming
+        - name: var-naming
+        - name: package-comments
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+        - name: empty-block
+        - name: if-return
+        - name: superfluous-else
+        - name: early-return
+
+    gocritic:
+      enabled-checks:
+        - dupImport
+        - nilValReturn
+        - paramTypeCombine
+        - rangeExprCopy
+        - sloppyReassign
+        - unnecessaryBlock
+        - hugeParam
+        - importShadow
+      settings:
+        hugeParam:
+          sizeThreshold: 64
+
+    misspell:
+      locale: US
+
+#    gocyclo:
+#      min-complexity: 12
+
+    cyclop:
+      max-complexity: 12
+      package-average: 10.0
+
+    mnd:
+      # Разрешённые места для чисел (уменьшает шум)
+      ignored-functions: ["len", "cap"]
+      ignored-numbers: ["0", "1", "2", "64", "100", "200", "256", "1024"]
+      ignored-files: [".*_test\\.go"]
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    wrapcheck:
+      ignore-sigs:
+        - ".Errorf("
+        - "errors.New("
+        - "errors.Is("
+        - "errors.As("
+        - "errors.Unwrap("
+        - ".Wrap("
+        - ".Wrapf("
+        - ".WithMessage("
+        - ".WithMessagef("
+        - ".WithStack("
+
+    dupl:
+      threshold: 80
+
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+    gocognit:
+      min-complexity: 15
+
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: true
+
+    exhaustive:
+      check:
+        - switch
+        - map
+      default-signifies-exhaustive: false
+
+    nolintlint:
+      allow-unused: false
+      require-explanation: true
+      require-specific: true
+
+    depguard:
+      rules:
+        main:
+          list-mode: original
+          deny:
+            - pkg: "github.com/pkg/errors"
+              desc: "Используйте стандартные errors и fmt.Errorf с %w"
+
+    nakedret:
+      max-func-lines: 31
+
+    unparam:
+      check-exported: true
+
+    predeclared:
+      # List of predeclared identifiers to not report on.
+      # Default: []
+      ignore:
+        - new
+        - int
+      # Include method names and field names in checks.
+      # Default: false
+      qualified-name: true
+
+    usetesting:
+      # Enable/disable `os.CreateTemp("", ...)` detections.
+      # Default: true
+      os-create-temp: false
+      # Enable/disable `os.MkdirTemp()` detections.
+      # Default: true
+      os-mkdir-temp: false
+      # Enable/disable `os.Setenv()` detections.
+      # Default: true
+      os-setenv: false
+      # Enable/disable `os.TempDir()` detections.
+      # Default: false
+      os-temp-dir: true
+      # Enable/disable `os.Chdir()` detections.
+      # Disabled if Go < 1.24.
+      # Default: true
+      os-chdir: false
+      # Enable/disable `context.Background()` detections.
+      # Disabled if Go < 1.24.
+      # Default: false
+      context-background: true
+      # Enable/disable `context.TODO()` detections.
+      # Disabled if Go < 1.24.
+      # Default: false
+      context-todo: true
+
+
+formatters:
+  enable: []
+#    - gofumpt
+
+  settings:
+    # Опциональные настройки для форматирования
+    gofumpt:
+      # Module path which contains the source code being formatted.
+      # Default: ""
+      module-path: github.com/alex-storchak/go-musthave-group-diploma
+      # Choose whether to use the extra rules.
+      # Default: false
+      extra-rules: true
